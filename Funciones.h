@@ -65,28 +65,22 @@ Func_1op_tipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,0,NOT,0};
 void Pre_Funcion(short int cant,long int op1,long int op2,char top1,char top2,char operacion,tmv *tmv){
     long int valor;
     if (cant==2){
-        if (operacion!=3){
-            valor=Valor_op(op2,top2,*tmv);
+        if (operacion!=3){  
+            valor=Valor_op(op2,top2,*tmv);          //Como sabe que solo necesita el valor de el operando 2 va a buscar el valor, el op1 lo necesitamos por que muchas veces guardamos ahi
             funciones[operacion](op1,top1,valor,tmv);
         }else
-            SWAP(op1,op2,top1,top2,tmv);
+            SWAP(op1,op2,top1,top2,tmv); //aca necesitamos los dos
     }else{
         if (cant==0)
-            RET(tmv);
+            RET(tmv);  //stop
         else
-            if (operacion<=10 && operacion>=1 || operacion==12 || operacion==14){
+            if (operacion<=10 && operacion>=1 || operacion==12 || operacion==14){ //en las de tipo dos no necesitamos la direccion del op1
                 valor=Valor_op(op1,top1,*tmv);
                 tipo2[operacion](valor,tmv);
             }else
-                tipo1[operacion](op1,top1,tmv);
+                tipo1[operacion](op1,top1,tmv);  //aca si la necesitamos
     }
 }
-
-
-
-
-
-
 
 
 
@@ -111,6 +105,8 @@ long int Valor_op(long int op,char top,tmv mv){
     }
     return (resultado);
 }
+
+
 long int Valor_mem(long int op,tmv mv){
     long int resultado=0;
     long int pos_memo=puntero_memo(op,mv);
@@ -127,4 +123,20 @@ long int Valor_mem(long int op,tmv mv){
         resultado=(short int)aux;
     return resultado;
 
+}
+
+long int puntero_memo(long int op,tmv mv){
+    short int offset=(op&0x0000FFFF);     //primeros 4 bytes para el offset
+    int treg=(op&0x000F0000)>>16;         //byte que te da que segmento queres apuntar
+    long int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
+    long int reg_pointer=reg>>16;         //
+    short int reg_offset=(reg&0x0000FFFF);
+    return mv.TablaDeSegmentos[reg_pointer].base+reg_offset+offset;
+}
+unsigned short int celdas_memo(long int op){
+    unsigned long int aux=op&(0x00C00000);
+    unsigned int aux2=aux>>22;
+    aux2=aux2^0x3;
+    aux2++;
+    return aux2;
 }

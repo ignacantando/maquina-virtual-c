@@ -128,3 +128,10 @@ void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
         else
             *cant=1;
 }
+
+void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memory,tmv *mv){
+    for (int i=2;i<argc;i++){
+        if (strcmp(argv[i],"-d")==0)   // mostrar el código Assembler correspondiente al código máquina cargado en la memoria principal.
+            (*diss)=1;
+    }
+}
