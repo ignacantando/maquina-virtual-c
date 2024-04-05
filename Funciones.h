@@ -59,9 +59,6 @@ Func_1op_tipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,0,NOT,0};
 
 
 
-
-
-
 void Pre_Funcion(short int cant,long int op1,long int op2,char top1,char top2,char operacion,tmv *tmv){
     long int valor;
     if (cant==2){
@@ -110,38 +107,43 @@ long int Valor_op(long int op,char top,tmv mv){
 long int Valor_mem(long int op,tmv mv){
     long int resultado=0;
     long int pos_memo=puntero_memo(op,mv);
-    resultado=(mv.TablaMemoria[pos_memo])&0x000000FF;
+    for (int i=0;i<=3;i++){
+        resultado+=(mv.TablaMemoria[pos_memo+i])&0x000000FF;
+        if (i!=3)
+            resultado=resultado<<8;
+    }
     return resultado;
 }
 
 long int puntero_memo(long int op,tmv mv){
-    short int offset=(op&0x0000FFFF);     //primeros 2 bytes para el offset
+    short int offset=(op&0x0000FFFF);     //ultimos 2 bytes para el offset
     int treg=(op&0x000F0000)>>16;         //4 bits que te da que segmento queres apuntar
     long int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
-    long int reg_pointer=reg>>16;         //puntero al registro, ya sea CS o DS  aca lo que sacamos es la base(direccion fisica)
-    short int reg_offset=(reg&0x0000FFFF);//offset del registro (tamanio)
-    return mv.TablaDeSegmentos[reg_pointer].base+reg_offset+offset;//
+    long int reg_pointer=reg>>16;         //puntero al registro, ya sea CS o DS  
+    short int reg_offset=(reg&0x0000FFFF);//offset del registro 
+    return mv.TablaDeSegmentos[reg_pointer].base+reg_offset+offset;
 }
 
 
 long int Valor_reg(char tipo,long int op,tmv mv){
     long int resultado=0;
     if (tipo==0)
-        resultado=mv.TablaRegistros[(op&0x0F)];
+        resultado=mv.TablaRegistros[(op&0x0F)];   //EAX
     if (tipo==1)
-        resultado=mv.TablaRegistros[(op&0x0F)]&0x000000FF;
+        resultado=mv.TablaRegistros[(op&0x0F)]&0x000000FF;  //AL
     if (tipo==2)
-        resultado=(mv.TablaRegistros[(op&0x0F)]&0x0000FF00)>>8;
+        resultado=(mv.TablaRegistros[(op&0x0F)]&0x0000FF00)>>8;  //AH
     if (tipo==3)
-        resultado=mv.TablaRegistros[(op&0x0F)]&0x0000FFFF;
+        resultado=mv.TablaRegistros[(op&0x0F)]&0x0000FFFF;  //AX
     return resultado;
 }
+
 long int Suma_reg(char tipo,long int op,tmv mv){
     long int resultado=0;
     if (tipo==1)
-        resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFFFF00;
+        resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFFFF00; 
     if (tipo==2)
-        resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFF00FF;
+        resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFF00FF;  
     if (tipo==3)
         resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFF0000;
     return resultado;

@@ -123,7 +123,7 @@ void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
     if (((instruccion>>4)&0x01)==0)                 //miro el 5 bite si es 0 son 2 operandos
         *cant=2;
     else
-        if((instruccion>>5)&0x0F==0x0F)         //miro el 5 bite si hay 4 unos entonces no hay operandos
+        if(((instruccion>>5)&0x07)==0x07)         //miro el 5 bite si hay 4 unos entonces no hay operandos
             *cant=0;
         else
             *cant=1;
