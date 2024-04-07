@@ -135,3 +135,4 @@ void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memo
             (*diss)=1;
     }
 }
+

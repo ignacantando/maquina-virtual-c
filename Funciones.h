@@ -138,7 +138,7 @@ long int Valor_reg(char tipo,long int op,tmv mv){
     return resultado;
 }
 
-long int Suma_reg(char tipo,long int op,tmv mv){
+long int Setea_Asignacion(char tipo,long int op,tmv mv){    //esto setea el registro es 0 para que se puede asignar el nuevo numero
     long int resultado=0;
     if (tipo==1)
         resultado=mv.TablaRegistros[(op&0x0F)]&0xFFFFFF00; 
@@ -160,6 +160,13 @@ long int Mascara_registro(long int valor, char tipo){
         resultado=valor&0x000FFFF;          //AX
     return resultado;
 }
+void Ultima_operacion(tmv *mv,long int nz){
+    (*mv).TablaRegistros[8]=0; //queda asi si es positivo
+    if (nz==0)
+        (*mv).TablaRegistros[8]=0x40000000;     //=0
+    if (nz<0)
+        (*mv).TablaRegistros[8]=0x80000000;     //negativo
+}
 
 
 
@@ -167,32 +174,295 @@ long int Mascara_registro(long int valor, char tipo){
 
 
 void MOV(long int op1,char top1,long int valor,tmv *mv){
-    char tiporeg=(op1>>4)&0x3;
+    char tiporeg=(op1>>4)&0x3;  //esto es para ver que registro es
     if (top1==0){
-        long int pos_memo=puntero_memo(op1,*mv);
-        (*mv).TablaMemoria[pos_memo]=(valor);
-    }else{
-        valor=Mascara_registro(valor,tiporeg);
-        (*mv).TablaRegistros[(op1&0x0F)]=Suma_reg(tiporeg,op1,*mv);
-        (*mv).TablaRegistros[(op1&0x0F)]+=valor;
+        long int pos_memo=puntero_memo(op1,*mv);  //buscamos el puntero a memoria
+        for(int i=0;i<=3;i++)
+             (*mv).TablaMemoria[pos_memo+i]=(((valor))>>(3-i)*8);  //guardamos los 4 bytes        aca mi duda es si no guarda tambien los valores mas altos en los siguientes
+
+    }else{   //significa que es un registro
+        valor=Mascara_registro(valor,tiporeg);      //le aplicamos la mascara a el valor segun el tipo de registro
+        (*mv).TablaRegistros[(op1&0x0F)]=Setea_Asignacion(tiporeg,op1,*mv); //pone en 0 el registro
+        (*mv).TablaRegistros[(op1&0x0F)]+=valor;        //seteo el valor de el op2
     }
 }
-void ADD(long int op1,char top1,long int valor,tmv *mv){
+void ADD(long int op1,char top1,long int valor,tmv *mv){    //hice cambios en este
     char tiporeg=(op1>>4)&0x3;
-    long int aux=0,nz=0;
-    if (top1==0){
-        long int valorm=Valor_mem(op1,*mv);
-        nz=valorm+valor;
-        valorm=nz;
-        MOV(op1,top1,valorm,mv);
-    }else{
-        aux=Valor_reg(tiporeg,op1,*mv);
-        aux+=valor;
-        nz=aux;
-        aux=Mascara_registro(aux,tiporeg);
-        if (tiporeg!=0)
-            aux+=Suma_reg(tiporeg,op1,*mv);
-        (*mv).TablaRegistros[(op1&0x0F)]=aux;
+    long int nz=0,valorm;
+    if (top1==0){       //en memoria
+        valorm=Valor_mem(op1,*mv); //valor del operando 1
+    }else{      //es un registro
+        valorm=Valor_reg(tiporeg,op1,*mv); //busca el valor del registro de op1
     }
+    nz=valorm+valor;    //suma los dos operandos
+    MOV(op1,top1,nz,mv); 
     Ultima_operacion(mv,nz);
 }
+
+void SUB(long int op1,char top1,long int valor,tmv*mv){  //cambios
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm-valor;    //resta
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+
+void SWAP(long int op1,long int op2,char top1,char top2,tmv *mv){
+    long int aux,aux2;
+    if (top1==top2){
+        if (top1==0){
+           aux=Valor_mem(op1,*mv);      //busco valor op1 en memoria
+           aux2=Valor_mem(op2,*mv);     //busco valor op2 en memoria
+        }else{
+            aux=Valor_op(op1,top1,*mv);     //busco valor op1 en registro o si es inmediato
+            aux2=Valor_op(op2,top2,*mv);     //busco valor op2 en registro o si es inmediato
+        }
+        MOV(op1,top1,aux2,mv);      //seteo el valor del op2 en la posicion o registro del 1
+        MOV(op2,top2,aux,mv);       //vise
+    }
+}
+void MUL(long int op1,char top1,long int valor,tmv *mv){    //cambio
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm*valor;    //mult
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+
+void DIV(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if(valor!=0){
+        if (top1==0)
+            valorm=Valor_mem(op1,*mv);  
+        else
+            valorm=Valor_reg(tiporeg,op1,*mv);
+        nz=valorm/valor;    //div
+        MOV(op1,top1,nz,mv);
+        Ultima_operacion(mv,nz);
+    }else{
+        printf("ERROR(2): no se puede dividir por 0");
+        exit(-1);
+    }
+}
+
+void CMP(long int op1,char top1,long int valor2,tmv *mv){
+    long int valor=Valor_op(op1,top1,*mv); //Calculamos el valor del op1
+    Ultima_operacion(mv,valor-valor2);  //mandamos a ultima operacion la resta, si op2 es mayor entonces va a dar negativo y si son iguales 0.
+}
+
+void SHL(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm<<valor;    //shift left
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+
+void SHR(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm>>valor;    //shift right
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+void AND(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm&&valor;    //and
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+void OR(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm||valor;    //OR
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+void XOR(long int op1,char top1,long int valor,tmv *mv){
+    char tiporeg=(op1>>4)&0x3;
+    long int nz=0,valorm;
+    if (top1==0)
+        valorm=Valor_mem(op1,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op1,*mv);
+    nz=valorm^valor;    //XOR   
+    MOV(op1,top1,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+
+void RND(long int op1,char top1,long int valor2,tmv *mv){      //cambio de consigna
+    // Semilla para la generación de números aleatorios
+    srand(time(NULL));
+
+    // Generar número aleatorio entre 0 y valor2
+    int valor = rand() % (valor2 + 1);
+    
+    MOV(op1,top1,valor,mv);
+}
+
+
+
+
+
+
+
+
+
+
+
+void JMP(long int valor,tmv *mv){
+    (*mv).TablaRegistros[5]=valor;  //pone el IP en el valor que le damos
+}
+void JZ(long int valor,tmv *mv){
+    if((*mv).TablaRegistros[8]==0x40000000) //Si es 0 salta al valor
+        JMP(valor,mv);
+}
+void JP(long int valor,tmv *mv){
+    if((*mv).TablaRegistros[8]==0x00000000) //si es positivo salta
+        JMP(valor,mv);
+}
+void JN(long int valor,tmv *mv){
+    if((*mv).TablaRegistros[8]==0x80000000) //si es negativo salta
+        JMP(valor,mv);
+}
+void JNZ(long int valor,tmv *mv){
+    if((*mv).TablaRegistros[8]==0x80000000 || (*mv).TablaRegistros[8]==0x00000000)  //si es negativo o positivo salta
+        JMP(valor,mv);
+}
+void JNP(long int valor,tmv*mv){
+    if((*mv).TablaRegistros[8]==0x80000000 || (*mv).TablaRegistros[8]==0x40000000)  //si es negativo o 0 salta
+        JMP(valor,mv);
+}
+void JNN(long int valor,tmv *mv){
+    if((*mv).TablaRegistros[8]==0x40000000 || (*mv).TablaRegistros[8]==0x00000000)  //si es 0 o positivo salta
+        JMP(valor,mv);
+}
+void LDH(long int valor,tmv *mv){
+    (*mv).TablaRegistros[9]=((*mv).TablaRegistros[9]&0x0000FFFF)+((valor&0x0000FFFF)<<16); 
+}
+void LDL(long int valor,tmv *mv){
+    (*mv).TablaRegistros[9]=((*mv).TablaRegistros[9]&0xFFFF0000)+(valor&0x0000FFFF);
+}
+
+void NOT(long int op,char top,tmv *mv){
+    char tiporeg=(op>>4)&0x3;
+    long int nz=0,valorm;
+    if (top==0)
+        valorm=Valor_mem(op,*mv);  
+    else
+        valorm=Valor_reg(tiporeg,op,*mv);
+    nz=~valorm;    //NOT 
+    MOV(op,top,nz,mv);
+    Ultima_operacion(mv,nz);
+}
+
+
+void Muestra_mem(long int ip){
+    printf("[%4.4X] ",ip);
+}
+
+void SYS(long int op,char top,tmv *mv){
+    long int valor,pos,tot;
+    int rep,byt;
+    char tipo;
+    valor=Valor_op(op,top,*mv);
+    //preparo pos en edx
+    long int regpointer=((*mv).TablaRegistros[13]&0xFFFF0000)>>16;
+    long int memo=(*mv).TablaDeSegmentos[regpointer].base;
+    long int offset=((*mv).TablaRegistros[13]&0x0000FFFF);
+    pos=memo+offset;
+    rep=(*mv).TablaRegistros[12]&0x000000FF;//CL
+    byt=((*mv).TablaRegistros[12]&0x0000FF00)>>8;//CH
+    tipo=(*mv).TablaRegistros[10]&0x000000FF;//AL
+    //escribe por pantalla
+    if (valor==2){
+        for(int i=1;i<=rep;i++){    //cantidad de celdas
+            tot=0;
+            for (int j=1;j<=byt;j++){   //tamanio
+                tot+=((*mv).TablaMemoria[pos+j-1])&0xFF;
+                if (j!=byt)
+                    tot=tot<<8;
+            }
+            Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
+            Escribe(tot,tipo,byt);
+            printf("\n");
+            pos+=byt;
+        }
+    }
+    //lee por pantalla
+    if (valor==1){
+        for (int i=1;i<=rep;i++){
+            Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
+            Leer(tipo,&tot);
+            for (int j=1;j<=byt;j++){
+                (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
+            }
+            pos+=byt;
+        }
+    }
+}
+
+
+
+void Leer(char tipo,long int *tot){
+    if (tipo==1)
+        scanf("%d",tot);
+    if (tipo==2)
+        scanf("%c",tot);
+    if (tipo==4)
+        scanf("%o",tot);
+    if (tipo==8)
+        scanf("%x",tot);
+}
+void Escribe(long int valor,unsigned char tipo,int tamano){
+    unsigned char u;
+    long int aux;
+        u=tipo&0x1;
+        if (u!=0)
+            printf("#%d ",valor);
+        u=tipo&0x2;
+        if (u!=0){
+            printf("'");
+            //mostrar byte a byte
+            for(int i=1;i<=tamano;i++){
+                aux=(valor>>(tamano-i)*8)&0x000000FF;
+                if (aux>=32 && aux<=126)
+                    printf("%c",aux);
+                else
+                    printf(".");
+            }
+            printf(" ");
+        }
+        u=tipo&0x4;
+        if (u!=0)
+            printf("@%o ",valor);
+        u=tipo&0x8;
+        if (u!=0)
+            printf("%c%X ",'%',valor);
+    }
