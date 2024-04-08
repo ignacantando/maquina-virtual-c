@@ -246,6 +246,7 @@ void DIV(long int op1,char top1,long int valor,tmv *mv){
         else
             valorm=Valor_reg(tiporeg,op1,*mv);
         nz=valorm/valor;    //div
+        (*mv).TablaRegistros[9]=valorm%valor;
         MOV(op1,top1,nz,mv);
         Ultima_operacion(mv,nz);
     }else{
@@ -466,3 +467,23 @@ void Escribe(long int valor,unsigned char tipo,int tamano){
         if (u!=0)
             printf("%c%X ",'%',valor);
     }
+
+
+void Integridad_op(long int op,MV mv){
+    char pos0=mv.TablaDeDatos[1].pos;
+    short int valor=0;
+    long int offset=(op&0x0000FFFF);
+    int treg=(op&0x00FF0000)>>16;
+    long int reg=mv.TablaRegistros[treg];
+    long int reg_pointer=reg>>16;
+    long int reg_offset=reg&0x0000FFFF;
+    if (reg==0){
+        valor=offset;
+    }else{
+        valor=offset+mv.TablaDeDatos[reg_pointer].pos+reg_offset;
+    }
+    if (valor<pos0){
+        printf("ERROR (3): estas entrando al CS");
+        exit(-1);
+    }
+}
