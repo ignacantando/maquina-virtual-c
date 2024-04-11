@@ -1,23 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "Funciones.h"
 
 
-
-void Inicia_registro(tmv *mv);
-void Inicia_memoria(char *dire,tmv *mv,unsigned int memory);
+void InicializarRegistros(tmv *mv);
+void Inicia_memoria(char *dire,tmv *mv);
 void Lectura(tmv *mv);
+void Cant_op(char instruccion,char *top1,char *top2,short int *cant);
+void Lectura_argumentos(int argc,char *argv[],short int *diss,tmv *mv);
 
 int main(int argc,char *argv[]){
     tmv mv;
     unsigned short int diss=0;
-    Lectura_argumentos(argc,argv,&diss,&memory,&mv);
-    Inicia_registro(&mv);
-    Inicia_memoria(argv[1],&mv,memory);
+    printf("1");
+    Lectura_argumentos(argc,argv,&diss,&mv);
+    printf("2");
+    InicializarRegistros(&mv);
+    printf("3");
+    Inicia_memoria(argv[1],&mv);
+    printf("4");
     if(diss==1)
-        Dissasembler_mostrar(mv);
+        //Dissasembler_mostrar(mv);
+    printf("5");
     Lectura(&mv);
 }
+
 
 
 void InicializarRegistros(tmv *mv){
@@ -30,7 +38,7 @@ void InicializarRegistros(tmv *mv){
 
 
 
-void Inicia_memoria(char *dire,tmv *mv,unsigned int memory){
+void Inicia_memoria(char *dire,tmv *mv){
     char version,lec,nombre[5];
     FILE *arch=fopen(dire,"rb");
     int i=0;
@@ -70,7 +78,6 @@ void Lectura(tmv *mv){
     short int cant;
     long int op1,op2;
     int corte;
-    char dbg;
     while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
     {
         op1=0;
@@ -129,10 +136,9 @@ void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
             *cant=1;
 }
 
-void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memory,tmv *mv){
+void Lectura_argumentos(int argc,char *argv[],short int *diss,tmv *mv){
     for (int i=2;i<argc;i++){
         if (strcmp(argv[i],"-d")==0)   // mostrar el código Assembler correspondiente al código máquina cargado en la memoria principal.
             (*diss)=1;
     }
 }
-

@@ -1,6 +1,6 @@
 
 #define MAX_M 16384
-
+#include <time.h>
 
 
 typedef struct{
@@ -54,28 +54,29 @@ void SYS(long int op,char top,tmv *tmv);
 //void POP(long int op,char top,tmv *tmv);
 Func_1op_tipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,0,NOT,0};
 
+long int Valor_op(long int op,char top,tmv mv);
+long int Valor_mem(long int op,tmv mv);
+long int puntero_memo(long int op,tmv mv);
+void Leer(char tipo,long int *tot);
+void Integridad_op(long int op,tmv mv);
+void Escribe(long int valor,unsigned char tipo,int tamano);
 
 
-
-
-
-void Pre_Funcion(short int cant,long int op1,long int op2,char top1,char top2,char operacion,tmv *tmv){
+void Pre_Funcion(short int cant,long int op1,long int op2,char top1,char top2,char operacion,tmv *mv){
     long int valor;
     if (cant==2){
-        if (operacion!=3){  
-            valor=Valor_op(op2,top2,*tmv);          //Como sabe que solo necesita el valor de el operando 2 va a buscar el valor, el op1 lo necesitamos por que muchas veces guardamos ahi
-            funciones[operacion](op1,top1,valor,tmv);
+        if (operacion!=3){
+            valor=Valor_op(op2,top2,*mv);
+            funciones[operacion](op1,top1,valor,mv);
         }else
-            SWAP(op1,op2,top1,top2,tmv); //aca necesitamos los dos
+            SWAP(op1,op2,top1,top2,mv);
     }else{
-        if (cant==0)
-            RET(tmv);  //stop
+        if (operacion<=10 && operacion>=1){
+            valor=Valor_op(op1,top1,*mv);
+            tipo2[operacion](valor,mv);
+        }
         else
-            if (operacion<=10 && operacion>=1 || operacion==12 || operacion==14){ //en las de tipo dos no necesitamos la direccion del op1
-                valor=Valor_op(op1,top1,*tmv);
-                tipo2[operacion](valor,tmv);
-            }else
-                tipo1[operacion](op1,top1,tmv);  //aca si la necesitamos
+           tipo1[operacion](op1,top1,mv);
     }
 }
 
@@ -116,6 +117,7 @@ long int Valor_mem(long int op,tmv mv){
 }
 
 long int puntero_memo(long int op,tmv mv){
+    printf("aaa");
     short int offset=(op&0x0000FFFF);     //ultimos 2 bytes para el offset
     int treg=(op&0x000F0000)>>16;         //4 bits que te da que segmento queres apuntar
     long int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
@@ -174,6 +176,7 @@ void Ultima_operacion(tmv *mv,long int nz){
 
 
 void MOV(long int op1,char top1,long int valor,tmv *mv){
+    printf("MOV-");
     char tiporeg=(op1>>4)&0x3;  //esto es para ver que registro es
     if (top1==0){
         long int pos_memo=puntero_memo(op1,*mv);  //buscamos el puntero a memoria
@@ -187,6 +190,7 @@ void MOV(long int op1,char top1,long int valor,tmv *mv){
     }
 }
 void ADD(long int op1,char top1,long int valor,tmv *mv){    //hice cambios en este
+    printf("ADD-");
     char tiporeg=(op1>>4)&0x3;
     long int nz=0,valorm;
     if (top1==0){       //en memoria
@@ -209,6 +213,7 @@ void SUB(long int op1,char top1,long int valor,tmv*mv){  //cambios
     nz=valorm-valor;    //resta
     MOV(op1,top1,nz,mv);
     Ultima_operacion(mv,nz);
+    
 }
 
 void SWAP(long int op1,long int op2,char top1,char top2,tmv *mv){
@@ -256,6 +261,7 @@ void DIV(long int op1,char top1,long int valor,tmv *mv){
 }
 
 void CMP(long int op1,char top1,long int valor2,tmv *mv){
+    printf("CMP-");
     long int valor=Valor_op(op1,top1,*mv); //Calculamos el valor del op1
     Ultima_operacion(mv,valor-valor2);  //mandamos a ultima operacion la resta, si op2 es mayor entonces va a dar negativo y si son iguales 0.
 }
@@ -403,6 +409,7 @@ void SYS(long int op,char top,tmv *mv){
     tipo=(*mv).TablaRegistros[10]&0x000000FF;//AL
     //escribe por pantalla
     if (valor==2){
+         printf("SYS2-");
         for(int i=1;i<=rep;i++){    //cantidad de celdas
             tot=0;
             for (int j=1;j<=byt;j++){   //tamanio
@@ -418,8 +425,11 @@ void SYS(long int op,char top,tmv *mv){
     }
     //lee por pantalla
     if (valor==1){
+        printf("%d \n",rep);
+         printf("SYS1-");
         for (int i=1;i<=rep;i++){
             Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
+            printf("entra1");
             Leer(tipo,&tot);
             for (int j=1;j<=byt;j++){
                 (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
@@ -432,6 +442,7 @@ void SYS(long int op,char top,tmv *mv){
 
 
 void Leer(char tipo,long int *tot){
+    printf("entra");
     if (tipo==1)
         scanf("%d",tot);
     if (tipo==2)
@@ -469,8 +480,8 @@ void Escribe(long int valor,unsigned char tipo,int tamano){
     }
 
 
-void Integridad_op(long int op,MV mv){
-    char pos0=mv.TablaDeDatos[1].pos;
+void Integridad_op(long int op,tmv mv){
+    char pos0=mv.TablaDeSegmentos[1].base;
     short int valor=0;
     long int offset=(op&0x0000FFFF);
     int treg=(op&0x00FF0000)>>16;
@@ -480,7 +491,7 @@ void Integridad_op(long int op,MV mv){
     if (reg==0){
         valor=offset;
     }else{
-        valor=offset+mv.TablaDeDatos[reg_pointer].pos+reg_offset;
+        valor=offset+mv.TablaDeSegmentos[reg_pointer].base+reg_offset;
     }
     if (valor<pos0){
         printf("ERROR (3): estas entrando al CS");
