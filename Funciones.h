@@ -52,7 +52,7 @@ typedef void Func_1op_tipo1(long int op,char top,tmv *tmv);
 void NOT(long int op,char top,tmv *tmv);
 void SYS(long int op,char top,tmv *tmv);
 //void POP(long int op,char top,tmv *tmv);
-Func_1op_tipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,0,NOT,0};
+Func_1op_tipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,NOT,0,0};
 
 long int Valor_op(long int op,char top,tmv mv);
 long int Valor_mem(long int op,tmv mv);
@@ -66,21 +66,27 @@ void Pre_Funcion(short int cant,long int op1,long int op2,char top1,char top2,ch
     long int valor;
     if (cant==2){
         if (operacion!=3){
-            valor=Valor_op(op2,top2,*mv);
-            funciones[operacion](op1,top1,valor,mv);
+            valor=Valor_op(op1,top1,*mv);
+            funciones[operacion](op2,top2,valor,mv);
         }else
             SWAP(op1,op2,top1,top2,mv);
     }else{
-        if (operacion<=10 && operacion>=1){
+        if (operacion<10 && operacion>=1){
             valor=Valor_op(op1,top1,*mv);
             tipo2[operacion](valor,mv);
         }
-        else
+        else{
            tipo1[operacion](op1,top1,mv);
+        }
     }
 }
 
-
+void imprimirBinario(unsigned int num) {
+    if (num > 1) {
+        imprimirBinario(num >> 1);
+    }
+    printf("%d", num & 1);
+}
 
 long int Valor_op(long int op,char top,tmv mv){
     long int tiporeg=op>>4;        //aca lo hace por que si esta en un registro,lo corres 4 bites y los 2 primeros que te quedan son la cantidad que agarras de esos 4 bytes, EAX(4 bytes) AL(1 byte)
@@ -90,8 +96,9 @@ long int Valor_op(long int op,char top,tmv mv){
                 resultado=(short int)(mv.TablaRegistros[(op&0x0F)]&0x0000FFFF);    //AX  primeros 16 bits
             if (tiporeg==2)
                 resultado=(char)((mv.TablaRegistros[(op&0x0F)]&0x0000FF00)>>8);    //AH  
-            if (tiporeg==1)
-                resultado=(char)(mv.TablaRegistros[(op&0x0F)]&0x000000FF);          //AL
+            if (tiporeg==1){   
+                resultado=(char)(mv.TablaRegistros[(op&0x0F)]&0x000000FF);   
+            }       //AL
             if (tiporeg==0) 
                 resultado=mv.TablaRegistros[(op&0x0F)];     //EAX
     }
@@ -117,7 +124,6 @@ long int Valor_mem(long int op,tmv mv){
 }
 
 long int puntero_memo(long int op,tmv mv){
-    printf("aaa");
     short int offset=(op&0x0000FFFF);     //ultimos 2 bytes para el offset
     int treg=(op&0x000F0000)>>16;         //4 bits que te da que segmento queres apuntar
     long int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
@@ -176,7 +182,6 @@ void Ultima_operacion(tmv *mv,long int nz){
 
 
 void MOV(long int op1,char top1,long int valor,tmv *mv){
-    printf("MOV-");
     char tiporeg=(op1>>4)&0x3;  //esto es para ver que registro es
     if (top1==0){
         long int pos_memo=puntero_memo(op1,*mv);  //buscamos el puntero a memoria
@@ -250,7 +255,9 @@ void DIV(long int op1,char top1,long int valor,tmv *mv){
             valorm=Valor_mem(op1,*mv);  
         else
             valorm=Valor_reg(tiporeg,op1,*mv);
+        printf("Valor=%d  VALORRM=%d",valor,valorm);
         nz=valorm/valor;    //div
+        printf("DIV=%d",nz);
         (*mv).TablaRegistros[9]=valorm%valor;
         MOV(op1,top1,nz,mv);
         Ultima_operacion(mv,nz);
@@ -312,6 +319,7 @@ void OR(long int op1,char top1,long int valor,tmv *mv){
     Ultima_operacion(mv,nz);
 }
 void XOR(long int op1,char top1,long int valor,tmv *mv){
+    printf("XOR");
     char tiporeg=(op1>>4)&0x3;
     long int nz=0,valorm;
     if (top1==0)
@@ -325,6 +333,7 @@ void XOR(long int op1,char top1,long int valor,tmv *mv){
 
 void RND(long int op1,char top1,long int valor2,tmv *mv){      //cambio de consigna
     // Semilla para la generación de números aleatorios
+    printf("RND");
     srand(time(NULL));
 
     // Generar número aleatorio entre 0 y valor2
@@ -344,9 +353,12 @@ void RND(long int op1,char top1,long int valor2,tmv *mv){      //cambio de consi
 
 
 void JMP(long int valor,tmv *mv){
+    printf("JMP");
     (*mv).TablaRegistros[5]=valor;  //pone el IP en el valor que le damos
+    printf("TABLA:%2.2X",(*mv).TablaRegistros[5]);
 }
 void JZ(long int valor,tmv *mv){
+    printf("JMZ");
     if((*mv).TablaRegistros[8]==0x40000000) //Si es 0 salta al valor
         JMP(valor,mv);
 }
@@ -378,6 +390,7 @@ void LDL(long int valor,tmv *mv){
 }
 
 void NOT(long int op,char top,tmv *mv){
+    printf("NOT");
     char tiporeg=(op>>4)&0x3;
     long int nz=0,valorm;
     if (top==0)
@@ -387,11 +400,6 @@ void NOT(long int op,char top,tmv *mv){
     nz=~valorm;    //NOT 
     MOV(op,top,nz,mv);
     Ultima_operacion(mv,nz);
-}
-
-
-void Muestra_mem(long int ip){
-    printf("[%4.4X] ",ip);
 }
 
 void SYS(long int op,char top,tmv *mv){
@@ -404,6 +412,7 @@ void SYS(long int op,char top,tmv *mv){
     long int memo=(*mv).TablaDeSegmentos[regpointer].base;
     long int offset=((*mv).TablaRegistros[13]&0x0000FFFF);
     pos=memo+offset;
+    printf("REGPOINTER=%d  MEMO=%d  OFFSET=%d   ",regpointer,memo,offset);
     rep=(*mv).TablaRegistros[12]&0x000000FF;//CL
     byt=((*mv).TablaRegistros[12]&0x0000FF00)>>8;//CH
     tipo=(*mv).TablaRegistros[10]&0x000000FF;//AL
@@ -425,11 +434,9 @@ void SYS(long int op,char top,tmv *mv){
     }
     //lee por pantalla
     if (valor==1){
-        printf("%d \n",rep);
-         printf("SYS1-");
+        printf("SYS1-");
         for (int i=1;i<=rep;i++){
             Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
-            printf("entra1");
             Leer(tipo,&tot);
             for (int j=1;j<=byt;j++){
                 (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
@@ -442,7 +449,7 @@ void SYS(long int op,char top,tmv *mv){
 
 
 void Leer(char tipo,long int *tot){
-    printf("entra");
+    printf("Entra");
     if (tipo==1)
         scanf("%d",tot);
     if (tipo==2)

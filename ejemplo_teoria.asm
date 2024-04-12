@@ -1,6 +1,6 @@
 		MOV EFX,0       
 		MOV [4],0        
-otro:		MOV EDX,DS                                                                                                                       
+OTRO:	MOV EDX,DS                                                                                                                       
 		MOV CL,1                  
 		MOV CH,4       
 		MOV AL,%01                     
@@ -10,11 +10,11 @@ otro:		MOV EDX,DS
 		ADD [4],[0]    
 		ADD EFX,1       
 		JMP OTRO         
-SALE:		CMP EFX,0      
-		JZ FIN              
+SALE:	CMP EFX,0      
+		JZ FIN             
 		DIV [4],EFX   
-FIN:		MOV EDX,DS
-		ADD EDX,4
+FIN:	MOV EDX,DS
+		ADD EDX,4 
 		MOV CL,1
 		MOV CH,4
 		MOV AL,%01
