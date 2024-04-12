@@ -1,10 +1,10 @@
 #define MAX 13
 #define MAXREG 16
 void Dissasembler_mostrar(tmv mv);
-void Muesta_dissasembler(long int cant,long int op1,long int op2,char top1,char top2,char operacion);
-void Muestra_op(long int cant,long int op,char top);
+void Muesta_dissasembler(int cant,int op1,int op2,char top1,char top2,char operacion);
+void Muestra_op(int cant,int op,char top);
 void Muestra_byte(char valor);
-void Muestra_mem(long int ip);
+void Muestra_mem(int ip);
 
 typedef char* nmonico;
 nmonico nmonico1[MAX]={"MOV","ADD","SUB","SWAP","MUL","DIV","CMP","SHL","SHR","AND","OR","XOR","RND"};
@@ -16,9 +16,9 @@ reg_nom nombres[MAXREG]={"CS","DS",0,0,0,"IP",0,0,"CC","AC","EAX","EBX","ECX","E
 void Dissasembler_mostrar(tmv mv){
     char top1,top2,operacion;
     short int espacios,cant;
-    long int op1,op2;
+    int op1,op2;
     int corte;
-    long int cont=0;
+    int cont=0;
     while (cont<mv.TablaDeSegmentos[1].base){
         espacios=0;
         op1=0;
@@ -66,13 +66,13 @@ void Dissasembler_mostrar(tmv mv){
     }
     printf("------------------------\n");
 }
-void Muestra_mem(long int ip){
+void Muestra_mem(int ip){
     printf("[%4.4X] ",ip);
 }
 void Muestra_byte(char valor){
     printf("%2.2X ",valor&0xFF);
 }
-void Muestra_dissasembler(long int cant,long int op1,long int op2,char top1,char top2,char operacion){
+void Muestra_dissasembler(int cant,int op1,int op2,char top1,char top2,char operacion){
     printf("| ");
     if (cant==2){
         printf("%s ",nmonico1[operacion]);
@@ -89,7 +89,7 @@ void Muestra_dissasembler(long int cant,long int op1,long int op2,char top1,char
     }
     printf("\n");
 }
-void Muestra_op(long int cant,long int op,char top){
+void Muestra_op(int cant,int op,char top){
     char tiporeg;
     if (top==1)
         printf("%X",op);

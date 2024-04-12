@@ -9,17 +9,13 @@ void InicializarRegistros(tmv *mv);
 void Inicia_memoria(char *dire,tmv *mv);
 void Lectura(tmv *mv);
 void Cant_op(char instruccion,char *top1,char *top2,short int *cant);
-void Lectura_argumentos(int argc,char *argv[],short int *diss,tmv *mv);
 
 int main(int argc,char *argv[]){
     tmv mv;
-    unsigned short int diss=0;
-    Lectura_argumentos(argc,argv,&diss,&mv);
     InicializarRegistros(&mv);
     Inicia_memoria(argv[1],&mv);
-    //if(diss==1)
+    if(argv[2]!=NULL && strcmp(argv[2],"-d")==0)
         Dissasembler_mostrar(mv);
-    //printf("qq");
     Lectura(&mv);
 }
 
@@ -66,62 +62,10 @@ void Inicia_memoria(char *dire,tmv *mv){
     }
 }
 
-
-/*
-void Lectura(tmv *mv){
-    char top1,top2;  //top1=B , top2=A
-    unsigned char operacion;
-    short int cant;
-    long int op1,op2;
-    int corte;
-    while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
-    {
-        op1=0;
-        op2=0;
-        operacion=(*mv).TablaMemoria[(*mv).TablaRegistros[5]]&0xF;      //lee la operacion
-        Muestra_mem(0);
-        Muestra_byte((*mv).TablaMemoria[0]);
-        Cant_op((*mv).TablaMemoria[(*mv).TablaRegistros[5]],&top1,&top2,&cant); //lee la cantidad de operandos
-        corte=top1^0x3;//le asigno el opuesto del tipo1 el cual representa el tamanio
-        if (cant==2){
-            for (int i=1;i<=corte;i++){     //si es de memoria corte van a ser 3 bytes los cuales estaran uno abajo del otro,inmediato 2 y registro 1
-                (*mv).TablaRegistros[5]++;  //lee el siguiente byte
-                op1+=((*mv).TablaMemoria[(*mv).TablaRegistros[5]])&0x000000FF;  //lee el byte
-                if (i!=corte)
-                    op1=op1<<8;    //corre un byte 
-            }
-            corte=top2^0x3;//le asigno el opuesto del tipo2 el cual representa la longitud
-            for (int i=1;i<=corte;i++){
-                (*mv).TablaRegistros[5]++;
-                op2+=((*mv).TablaMemoria[(*mv).TablaRegistros[5]])&0x000000FF;
-                if (i!=corte)
-                    op2=op2<<8;
-            }
-        }else{
-            if (cant==0){
-                op1=operacion;
-            }else
-                for (int i=1;i<=corte;i++){
-                    (*mv).TablaRegistros[5]++;
-                    op1+=((*mv).TablaMemoria[(*mv).TablaRegistros[5]])&0x000000FF;
-                    if (i!=corte)
-                        op1=op1<<8;
-                }
-        }
-        (*mv).TablaRegistros[5]++;// le sumo uno mas al ip antes de que se ejecute la operacion.
-        //chequeo_errores(top1,top2,cant,operacion,op1,op2,*mv);
-        if (cant==0 && op1==0)
-            (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base;   //esto es un STOP y pone el IP en el DS asi termina el programa
-        else{
-            Pre_Funcion(cant,op1,op2,top1,top2,operacion,mv);//con esto arracamos la parte de hacer la funcion
-        }
-    }
-}
-*/
 void Lectura(tmv *mv){
     char top1,top2,operacion;
     short int cant;
-    long int op1,op2;
+    int op1,op2;
     int corte;
     while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
     {
@@ -188,11 +132,4 @@ void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
             *top1=(instruccion>>6)&0x03;   //saco el tipo de operando 2  A
             *cant=1;
         }
-}
-
-void Lectura_argumentos(int argc,char *argv[],short int *diss,tmv *mv){
-    for (int i=2;i<argc;i++){
-        if (strcmp(argv[i],"-d")==0)   // mostrar el código Assembler correspondiente al código máquina cargado en la memoria principal.
-            (*diss)=1;
-    }
 }

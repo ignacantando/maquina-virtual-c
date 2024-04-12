@@ -22,7 +22,8 @@ OTRO:   SUB [8],CX
         JMP OTRO
 FIN:    CMP [8],0
         JZ FINFIN
-FINFIN: ADD EDX,4
+FINFIN: MOV EFX,EAX
+        ADD EDX,4
         MOV CL,1
         MOV CH,4
         MOV AL,%01
