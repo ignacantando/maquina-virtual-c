@@ -113,7 +113,7 @@ int Valor_mem(int op,tmv mv){
 
 int puntero_memo(int op,tmv mv){
     short int offset=(op&0x0000FFFF);     //ultimos 2 bytes para el offset
-    int treg=(op&0x000F0000)>>16;         //4 bits que te da que segmento queres apuntar
+    int treg=(op&0x00FF0000)>>16;         //4 bits que te da que segmento queres apuntar
     int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
     int reg_pointer=reg>>16;         //puntero al registro, ya sea CS o DS  
     short int reg_offset=(reg&0x0000FFFF);//offset del registro 
