@@ -108,18 +108,15 @@ void Lectura(tmv *mv){
             exit(-1);
         }
         if(cant!=0)
-            Pre_Funcion(cant,op1,op2,top1,top2,operacion,mv);//con esto arracamos la parte de hacer la funcion
+            Pre_Funcion(cant,op1,op2,top1,top2,operacion,mv);
         else
             (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base;
-       // mue(*mv);
     }
 }
 
 
 void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
 
-    *top1=5;
-    *top2=5;
     if (((instruccion>>4)&0x01)==0){          //miro el 5 bite si es 0 son 2 operandos
         *cant=2;
         *top1=(instruccion>>6)&0x03;   //saco el tipo de operando 2  B

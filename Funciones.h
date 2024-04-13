@@ -27,7 +27,7 @@ void SHR(int op1,char top1,int valor2,tmv *mv);
 void AND(int op1,char top1,int valor2,tmv *mv);
 void OR(int op1,char top1,int valor2,tmv *mv);
 void XOR(int op1,char top1,int valor2,tmv *mv);
-void RND(int op1,char top1,int valor2,tmv *mv); //cambio
+void RND(int op1,char top1,int valor2,tmv *mv); 
 Funciones2op *funciones[]={MOV,ADD,SUB,0,MUL,DIV,CMP,SHL,SHR,AND,OR,XOR,RND};
 
 typedef void Func_1op_tipo2(int valor,tmv *mv);
@@ -74,12 +74,7 @@ void Pre_Funcion(short int cant,int op1,int op2,char top1,char top2,char operaci
     }
 }
 
-void imprimirBinario(unsigned int num) {
-    if (num > 1) {
-        imprimirBinario(num >> 1);
-    }
-    printf("%d", num & 1);
-}
+
 
 int Valor_op(int op,char top,tmv mv){
     int tiporeg=op>>4;        //aca lo hace por que si esta en un registro,lo corres 4 bites y los 2 primeros que te quedan son la cantidad que agarras de esos 4 bytes, EAX(4 bytes) AL(1 byte)
