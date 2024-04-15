@@ -1,6 +1,6 @@
 #define MAX 13
 #define MAXREG 16
-void Dissasembler_mostrar(tmv mv);
+void MostrarDissasembler(tmv mv);
 void Muesta_dissasembler(int cant,int op1,int op2,char top1,char top2,char operacion);
 void Muestra_op(int cant,int op,char top);
 void Muestra_byte(char valor);
@@ -13,7 +13,7 @@ nmonico nmonico2[MAX]={"SYS","JMP","JZ","JP","JN","JNZ","JNP","JNN","LDL","LDH",
 typedef char *reg_nom;
 reg_nom nombres[MAXREG]={"CS","DS",0,0,0,"IP",0,0,"CC","AC","EAX","EBX","ECX","EDX","EEX","EFX"};
 
-void Dissasembler_mostrar(tmv mv){
+void MostrarDissasembler(tmv mv){
     char top1,top2,operacion;
     short int espacios,cant;
     int op1,op2;
@@ -27,9 +27,8 @@ void Dissasembler_mostrar(tmv mv){
         Muestra_mem(cont);
         Muestra_byte(mv.TablaMemoria[cont]);
         espacios++;
-        Cant_op(mv.TablaMemoria[cont],&top1,&top2,&cant);
+        CantidadOperandos(mv.TablaMemoria[cont],&top1,&top2,&cant);
         corte=top1^0x3;
-        printf("TOOOOOOOP1=%2.2X      TOOP2=%2.2X    operacion=%2.2X   ",top1,top2,operacion);
         if (cant==2){
             for (int i=1;i<=corte;i++){
                 cont++;
