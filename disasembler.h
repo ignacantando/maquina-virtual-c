@@ -19,6 +19,7 @@ void MostrarDissasembler(tmv mv){
     int op1,op2;
     int corte;
     int cont=0;
+    printf("----------------------------------------------------\n");
     while (cont<mv.TablaDeSegmentos[1].base){
         espacios=0;
         op1=0;
@@ -63,7 +64,7 @@ void MostrarDissasembler(tmv mv){
                 printf("%s","   ");
         Muestra_dissasembler(cant,op2,op1,top2,top1,operacion);
     }
-    printf("------------------------\n");
+    printf("----------------------------------------------------\n");
 }
 void Muestra_mem(int ip){
     printf("[%4.4X] ",ip);
@@ -81,8 +82,10 @@ void Muestra_dissasembler(int cant,int op1,int op2,char top1,char top2,char oper
     }
     if (cant==0)
         printf("STOP");
-    Muestra_op(cant,op1,top1);
+    else if(cant==1)
+        Muestra_op(cant,op2,top2);
     if (cant==2){
+        Muestra_op(cant,op1,top1);
         printf(",");
         Muestra_op(cant,op2,top2);
     }
