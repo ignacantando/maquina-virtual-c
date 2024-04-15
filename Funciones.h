@@ -55,6 +55,13 @@ void Integridad_op(int op,tmv mv);
 void Escribe(int valor,unsigned char tipo,int tamano);
 
 
+void imprimirBinario(unsigned int num){
+      if (num>1) {
+            imprimirBinario(num >> 1);
+     }
+     printf("%d ", num &1);
+
+}
 void Pre_Funcion(short int cant,int op1,int op2,char top1,char top2,char operacion,tmv *mv){
     int valor;
     if (cant==2){
@@ -113,7 +120,7 @@ int Valor_mem(int op,tmv mv){
 
 int puntero_memo(int op,tmv mv){
     short int offset=(op&0x0000FFFF);     //ultimos 2 bytes para el offset
-    int treg=(op&0x00FF0000)>>16;         //4 bits que te da que segmento queres apuntar
+    int treg=(op&0x0F0000)>>16;         //4 bits que te da que segmento queres apuntar
     int reg=mv.TablaRegistros[treg]; //si es 0 elige donde apunta el CS y el 1 seria el DS
     int reg_pointer=reg>>16;         //puntero al registro, ya sea CS o DS  
     short int reg_offset=(reg&0x0000FFFF);//offset del registro 
@@ -173,9 +180,9 @@ void MOV(int op1,char top1,int valor,tmv *mv){
     char tiporeg=(op1>>4)&0x3;  //esto es para ver que registro es
     if (top1==0){
         int pos_memo=puntero_memo(op1,*mv);  //buscamos el puntero a memoria
-        for(int i=0;i<=3;i++)
-             (*mv).TablaMemoria[pos_memo+i]=(((valor))>>(3-i)*8);  //guardamos los 4 bytes        aca mi duda es si no guarda tambien los valores mas altos en los siguientes
-
+        for(int i=0;i<=3;i++){
+            (*mv).TablaMemoria[pos_memo+i]=(((valor))>>(3-i)*8);  //guardamos los 4 bytes        aca mi duda es si no guarda tambien los valores mas altos en los siguientes
+        }
     }else{   //significa que es un registro
         valor=Mascara_registro(valor,tiporeg);      //le aplicamos la mascara a el valor segun el tipo de registro
         (*mv).TablaRegistros[(op1&0x0F)]=Setea_Asignacion(tiporeg,op1,*mv); //pone en 0 el registro
@@ -224,6 +231,7 @@ void SWAP(int op1,int op2,char top1,char top2,tmv *mv){
     }
 }
 void MUL(int op1,char top1,int valor,tmv *mv){    //cambio
+    printf("MUL-\n");
     char tiporeg=(op1>>4)&0x3;
     int nz=0,valorm;
     if (top1==0)
@@ -243,9 +251,7 @@ void DIV(int op1,char top1,int valor,tmv *mv){
             valorm=Valor_mem(op1,*mv);  
         else
             valorm=Valor_reg(tiporeg,op1,*mv);
-        printf("Valor=%d  VALORRM=%d",valor,valorm);
         nz=valorm/valor;    //div
-        printf("DIV=%d",nz);
         (*mv).TablaRegistros[9]=valorm%valor;
         MOV(op1,top1,nz,mv);
         Ultima_operacion(mv,nz);
@@ -256,7 +262,6 @@ void DIV(int op1,char top1,int valor,tmv *mv){
 }
 
 void CMP(int op1,char top1,int valor2,tmv *mv){
-    printf("CMP-");
     int valor=Valor_op(op1,top1,*mv); //Calculamos el valor del op1
     Ultima_operacion(mv,valor-valor2);  //mandamos a ultima operacion la resta, si op2 es mayor entonces va a dar negativo y si son iguales 0.
 }
@@ -307,7 +312,6 @@ void OR(int op1,char top1,int valor,tmv *mv){
     Ultima_operacion(mv,nz);
 }
 void XOR(int op1,char top1,int valor,tmv *mv){
-    printf("XOR");
     char tiporeg=(op1>>4)&0x3;
     int nz=0,valorm;
     if (top1==0)
@@ -321,7 +325,6 @@ void XOR(int op1,char top1,int valor,tmv *mv){
 
 void RND(int op1,char top1,int valor2,tmv *mv){      //cambio de consigna
     // Semilla para la generación de números aleatorios
-    printf("RND");
     srand(time(NULL));
 
     // Generar número aleatorio entre 0 y valor2
@@ -341,12 +344,9 @@ void RND(int op1,char top1,int valor2,tmv *mv){      //cambio de consigna
 
 
 void JMP(int valor,tmv *mv){
-    printf("JMP");
     (*mv).TablaRegistros[5]=valor;  //pone el IP en el valor que le damos
-    printf("TABLA:%2.2X",(*mv).TablaRegistros[5]);
 }
 void JZ(int valor,tmv *mv){
-    printf("JMZ");
     if((*mv).TablaRegistros[8]==0x40000000) //Si es 0 salta al valor
         JMP(valor,mv);
 }
@@ -378,7 +378,6 @@ void LDL(int valor,tmv *mv){
 }
 
 void NOT(int op,char top,tmv *mv){
-    printf("NOT");
     char tiporeg=(op>>4)&0x3;
     int nz=0,valorm;
     if (top==0)
@@ -391,6 +390,7 @@ void NOT(int op,char top,tmv *mv){
 }
 
 void SYS(int op,char top,tmv *mv){
+    mue( *mv);
     int valor,pos,tot;
     int rep,byt;
     char tipo;
@@ -400,13 +400,11 @@ void SYS(int op,char top,tmv *mv){
     int memo=(*mv).TablaDeSegmentos[regpointer].base;
     int offset=((*mv).TablaRegistros[13]&0x0000FFFF);
     pos=memo+offset;
-    printf("REGPOINTER=%d  MEMO=%d  OFFSET=%d   ",regpointer,memo,offset);
     rep=(*mv).TablaRegistros[12]&0x000000FF;//CL
     byt=((*mv).TablaRegistros[12]&0x0000FF00)>>8;//CH
     tipo=(*mv).TablaRegistros[10]&0x000000FF;//AL
     //escribe por pantalla
     if (valor==2){
-         printf("SYS2-");
         for(int i=1;i<=rep;i++){    //cantidad de celdas
             tot=0;
             for (int j=1;j<=byt;j++){   //tamanio
@@ -422,7 +420,6 @@ void SYS(int op,char top,tmv *mv){
     }
     //lee por pantalla
     if (valor==1){
-        printf("SYS1-");
         for (int i=1;i<=rep;i++){
             Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
             Leer(tipo,&tot);
@@ -437,7 +434,6 @@ void SYS(int op,char top,tmv *mv){
 
 
 void Leer(char tipo,int *tot){
-    printf("Entra");
     if (tipo==1)
         scanf("%d",tot);
     if (tipo==2)

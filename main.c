@@ -14,7 +14,7 @@ int main(int argc,char *argv[]){
     tmv mv;
     InicializarRegistros(&mv);
     Inicia_memoria(argv[1],&mv);
-    if(argv[2]!=NULL && strcmp(argv[2],"-d")==0)
+    //if(argv[2]!=NULL && strcmp(argv[2],"-d")==0)
         Dissasembler_mostrar(mv);
     Lectura(&mv);
 }
@@ -47,7 +47,7 @@ void Inicia_memoria(char *dire,tmv *mv){
         valor+=val;
         (*mv).TablaDeSegmentos[0].base=0;
         (*mv).TablaDeSegmentos[0].size=valor;
-        (*mv).TablaDeSegmentos[1].base=valor;
+        (*mv).TablaDeSegmentos[1].base=valor+1;
         (*mv).TablaDeSegmentos[1].size=sizeof((*mv).TablaMemoria)-valor;
         if (version==1)
             while (!feof(arch)){
@@ -65,7 +65,7 @@ void Inicia_memoria(char *dire,tmv *mv){
 void Lectura(tmv *mv){
     char top1,top2,operacion;
     short int cant;
-    int op1,op2;
+    long long int op1,op2;
     int corte;
     while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
     {
@@ -114,9 +114,14 @@ void Lectura(tmv *mv){
     }
 }
 
+void mue(tmv mv){
+//int pos=(mv).TablaDeSegmentos[1].base;
+//printf("[0] %d %d %d %d \n",(mv).TablaMemoria[pos],(mv).TablaMemoria[pos+1],(mv).TablaMemoria[pos+2],(mv).TablaMemoria[pos+3]);
 
+for(int i=0;i<=250;i++)
+    printf("i=%d  =%2.2X \n",i,mv.TablaMemoria[i]);
+}
 void Cant_op(char instruccion,char *top1,char *top2,short int *cant){
-
     if (((instruccion>>4)&0x01)==0){          //miro el 5 bite si es 0 son 2 operandos
         *cant=2;
         *top1=(instruccion>>6)&0x03;   //saco el tipo de operando 2  B
