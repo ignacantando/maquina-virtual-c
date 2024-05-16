@@ -8,9 +8,13 @@ typedef struct{
 typedef struct{
     char TablaMemoria[MAX_M];
     int TablaRegistros[16];
-    tds TablaDeSegmentos[2];
+    tds TablaDeSegmentos[8];
 }tmv; //tipo de maquina virtual
 
+//variables globales del programa final
+unsigned short int Toggle_debbug=0;
+char direVMI[50]="";
+unsigned int memory=16384;
 
 typedef void Funciones2op(int op1,char top1,int valor,tmv *mv);
 void MOV(int op1,char top1,int valor,tmv *mv);
@@ -38,15 +42,21 @@ void JNP(int valor,tmv *mv);
 void JNN(int valor,tmv *mv);
 void LDH(int valor,tmv *mv);
 void LDL(int valor,tmv *mv);
-Funciones1opTipo2 *tipo2[]={0,JMP,JZ,JP,JN,JNZ,JNP,JNN,LDL,LDH};
+void PUSH(int valor,tmv *mv);
+void CALL(int valor,tmv *mv);
+Funciones1opTipo2 *tipo2[]={0,JMP,JZ,JP,JN,JNZ,JNP,JNN,LDL,LDH,PUSH,0,CALL};//puede estar mal
 
 typedef void Funciones1opTipo1(int op,char top,tmv *mv);
 void NOT(int op,char top,tmv *mv);
 void SYS(int op,char top,tmv *mv);
-Funciones1opTipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,NOT,0,0};
+void POP(int op,char top,tmv *mv);
+Funciones1opTipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,NOT,0,0,0,POP,0};//puede estar mal
+
+void RET(tmv *mv);
 
 int ValorOperando(int op,char top,tmv mv);
 int ValorMemoria(int op,tmv mv);
+unsigned short int celdas_memo(int op);
 int ValorRegistro(char tipo,int op,tmv mv);
 int DireccionMemoria(int op,tmv mv);
 int SeteaAsignacion(char tipo,int op,tmv mv);
@@ -65,12 +75,16 @@ void Prefuncion(short int cant,int op1,int op2,char top1,char top2,char operacio
         }else
             SWAP(op1,op2,top1,top2,mv);
     }else{
-        if (operacion<10 && operacion>=1){
-            valor=ValorOperando(op1,top1,*mv);
-            tipo2[operacion](valor,mv);
-        }
+        if (cant==0)
+            RET(mv);
         else{
-           tipo1[operacion](op1,top1,mv);
+            if (operacion<10 && operacion>=1 || operacion==11 || operacion==13){
+                valor=ValorOperando(op1,top1,*mv);
+                tipo2[operacion](valor,mv);
+            }
+            else{
+            tipo1[operacion](op1,top1,mv);
+            }
         }
     }
 }
@@ -98,15 +112,30 @@ int ValorOperando(int op,char top,tmv mv){
     return (resultado);
 }
 
-int ValorMemoria(int op,tmv mv){
+ int ValorMemoria(int op,tmv mv){
     int resultado=0;
-    int pos_memo=DireccionMemoria(op,mv);
-    for (int i=0;i<=3;i++){
+    int pos_memo=puntero_memo(op,mv);
+    unsigned short int cant=celdas_memo(op);
+    for (int i=0;i<cant;i++){
         resultado+=(mv.TablaMemoria[pos_memo+i])&0x000000FF;
-        if (i!=3)
+        if (i!=cant-1)
             resultado=resultado<<8;
     }
+    int aux=resultado;
+    if (cant==1)
+        resultado=(char)aux;
+    if (cant==2)
+        resultado=(short int)aux;
     return resultado;
+
+}
+
+unsigned short int celdas_memo(int op){
+    unsigned int aux=op&(0x00C00000);     //C=12   1100   
+    unsigned int aux2=aux>>22;
+    aux2=aux2^0x3;
+    aux2++;
+    return aux2;
 }
 
 int DireccionMemoria(int op,tmv mv){
@@ -163,15 +192,13 @@ void ModificaCC(tmv *mv,int nz){
         (*mv).TablaRegistros[8]=0x80000000;     //negativo
 }
 
-
-
-
 void MOV(int op1,char top1,int valor,tmv *mv){
     char tiporeg=(op1>>4)&0x3;
     if (top1==0){
         int pos_memo=DireccionMemoria(op1,*mv);
-        for(int i=0;i<=3;i++){
-            (*mv).TablaMemoria[pos_memo+i]=(((valor))>>(3-i)*8);
+        unsigned short int cant=celdas_memo(op1)-1;
+        for(int i=cant;i>=0;i--){
+            (*mv).TablaMemoria[pos_memo+i]=(((valor))>>(cant-i)*8);
         }
     }else{
         valor=MascaraRegistro(valor,tiporeg);
@@ -279,6 +306,7 @@ void SHR(int op1,char top1,int valor,tmv *mv){
     MOV(op1,top1,nz,mv);
     ModificaCC(mv,nz);
 }
+
 void AND(int op1,char top1,int valor,tmv *mv){
     char tiporeg=(op1>>4)&0x3;
     int nz=0,valorm;
@@ -383,6 +411,7 @@ void SYS(int op,char top,tmv *mv){
     int valor,pos,tot;
     int rep,byt;
     char tipo;
+    unsigned int tamanostr;
     valor=ValorOperando(op,top,*mv);
     int regpointer=((*mv).TablaRegistros[13]&0xFFFF0000)>>16;
     int memo=(*mv).TablaDeSegmentos[regpointer].base;
@@ -391,6 +420,7 @@ void SYS(int op,char top,tmv *mv){
     rep=(*mv).TablaRegistros[12]&0x000000FF;//CL
     byt=((*mv).TablaRegistros[12]&0x0000FF00)>>8;//CH
     tipo=(*mv).TablaRegistros[10]&0x000000FF;//AL
+    tamanostr=(*mv).TablaRegistros[12]&0x0000FFFF;//CX
     //escribe por pantalla
     if (valor==2){
         for(int i=1;i<=rep;i++){    //cantidad de celdas
@@ -400,7 +430,7 @@ void SYS(int op,char top,tmv *mv){
                 if (j!=byt)
                     tot=tot<<8;
             }
-            Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
+            MostrarMemoria(pos);
             Escribe(tot,tipo,byt);
             printf("\n");
             pos+=byt;
@@ -409,7 +439,7 @@ void SYS(int op,char top,tmv *mv){
     //lee por pantalla
     if (valor==1){
         for (int i=1;i<=rep;i++){
-            Muestra_mem(pos-(*mv).TablaDeSegmentos[1].base);
+            MostrarMemoria(pos);
             Leer(tipo,&tot);
             for (int j=1;j<=byt;j++){
                 (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
@@ -417,8 +447,40 @@ void SYS(int op,char top,tmv *mv){
             pos+=byt;
         }
     }
+    if (valor==3){
+        char palabra[1600];
+        gets(palabra);
+        fflush(stdin);
+        EscribeString(palabra,tamanostr,pos,mv);
+    }
+    if (valor==4){
+        LeeString(pos,mv);
+    }
+    if (valor==7)
+        system("clear");
+    if (valor==0xF && strcmp(direVMI,"")!=0)
+        Toggle_debbug=1;
 }
 
+void EscribeString(char *palabra,unsigned int tamanostr,long int pos,tmv *mv){
+    int i=0;
+    while (i<strlen(palabra) && i!=tamanostr){
+        (*mv).TablaMemoria[pos+i]=palabra[i];
+        i++;
+    }
+    if (i==tamanostr)
+        (*mv).TablaMemoria[pos+i]=0x00;
+    else
+        (*mv).TablaMemoria[pos+i+1]=0x00;
+}
+
+void LeeString(long int pos,tmv *mv){
+    int i=0;
+    while ((*mv).TablaMemoria[pos+i]!=0x00){
+        printf("%c",(*mv).TablaMemoria[pos+i]);
+        i++;
+    }
+}
 
 void Leer(char tipo,int *tot){
     if (tipo==1)
@@ -458,7 +520,6 @@ void Escribe(int valor,unsigned char tipo,int tamano){
             printf("%c%X ",'%',valor);
 }
 
-
 void VerificarOperacion(int op,tmv mv){
     char pos0=mv.TablaDeSegmentos[1].base;
     short int valor=0;
@@ -476,4 +537,49 @@ void VerificarOperacion(int op,tmv mv){
         printf("ERROR (3): estas entrando al CS");
         exit(-1);
     }
+}
+
+void PUSH(int valor,tmv *mv){
+    int ss_pointer=(((*mv).TablaRegistros[6]&0xFFFF0000)>>16);  //puntero al dato, por ejemplo da 6 y asi lo busca en la tabla de datos
+    int sp_offset=(*mv).TablaRegistros[6]&0x0000FFFF;       //corrimiento del SP en el segmento
+    int pos_ss=(*mv).TablaDeSegmentos[ss_pointer].base;          //posicion en memoria del ss
+    if (sp_offset-4<0){     //Como el sp apunta al maximo tamanio si este se pasa es por que la pila esta llena
+        printf("ERROR(5): Stack overflow error");
+        exit(-1);
+    }
+    for (int i=0;i<=3;i++){
+        sp_offset-=1;   //decremento en 4 el sp
+        (*mv).TablaMemoria[pos_ss+sp_offset]=(valor>>(i*8));    //guardo el valor en memoria(pila)
+    }
+    (*mv).TablaRegistros[6]=(*mv).TablaRegistros[6]&0xFFFF0000; //me parece medio al pedo esto por que no va a cambiar el segmento
+    (*mv).TablaRegistros[6]+=sp_offset;     //le cambia el offset
+}
+
+void POP(int op,char top,tmv *mv){
+    int aux=0;
+    int ss_pointer=(((*mv).TablaRegistros[4]&0xFFFF0000)>>16);
+    int sp_offset=(*mv).TablaRegistros[6]&0x0000FFFF;
+    int pos_ss=(*mv).TablaDeSegmentos[ss_pointer].base;
+    if (sp_offset+4>(*mv).TablaDeSegmentos[ss_pointer].size){
+        printf("ERROR(6): Stack underflow error");
+        exit(-1);
+    }
+    for (int i=0;i<=3;i++){
+        aux+=((*mv).TablaMemoria[pos_ss+sp_offset])&0xFF;
+        if (i!=3)
+            aux=aux<<8;
+        sp_offset+=1;
+    }
+    (*mv).TablaRegistros[6]=(*mv).TablaRegistros[6]&0xFFFF0000;
+    (*mv).TablaRegistros[6]+=sp_offset;
+    MOV(op,top,aux,mv);
+}
+
+void CALL(int valor,tmv *mv){
+    PUSH((*mv).TablaRegistros[5],mv);
+    JMP(valor,mv);
+}
+
+void RET(tmv *mv){
+    POP(0x05,2,mv);  //(*mv).TablaRegistros[5]
 }

@@ -6,7 +6,7 @@
 
 
 void InicializarRegistros(tmv *mv);
-void InicializarMemoria(char *direccion,tmv *mv);
+void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory);
 void Lectura(tmv *mv);
 void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant);
 
@@ -30,7 +30,7 @@ void InicializarRegistros(tmv *mv){
 }
 
 
-void InicializarMemoria(char *direccion,tmv *mv){
+void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
     char codigo,version,nombre[5];
     FILE *arch=fopen(direccion,"rb");
     int i=0;
@@ -39,29 +39,43 @@ void InicializarMemoria(char *direccion,tmv *mv){
     if (arch!=NULL){
         fread(nombre,sizeof(nombre),1,arch);//lee el titulo
         fread(&version,sizeof(char),1,arch);//lee la version
-        fread(&val,sizeof(char),1,arch);
-        valor+=val;
-        valor=(valor<<8);
-        fread(&val,sizeof(char),1,arch);
-        valor+=val;
-        (*mv).TablaDeSegmentos[0].base=0;
-        (*mv).TablaDeSegmentos[0].size=valor;
-        (*mv).TablaDeSegmentos[1].base=valor+1;
-        (*mv).TablaDeSegmentos[1].size=sizeof((*mv).TablaMemoria)-valor;
-        if (version==1)
-            while (!feof(arch)){
+        if (version==2){
+            unsigned int vec[6];
+            for (int j=0;j<5;j++){
+                valor=0;
+                fread(&val,sizeof(char),1,arch);
+                valor+=val;
+                fread(&val,sizeof(char),1,arch);
+                valor=valor<<8;
+                valor+=val;
+                vec[j]=valor;  //guarda el tamanio del segmento
+            }
+            SeteoV2(mv,vec,memory);
+        }
+        else{
+            fread(&val,sizeof(char),1,arch);
+            valor+=val;
+            valor=(valor<<8);
+            fread(&val,sizeof(char),1,arch);
+            valor+=val;
+            (*mv).TablaDeSegmentos[0].base=0;
+            (*mv).TablaDeSegmentos[0].size=valor;
+            (*mv).TablaDeSegmentos[1].base=valor;
+            (*mv).TablaDeSegmentos[1].size=sizeof((*mv).TablaMemoria)-valor; 
+        }
+        while (!feof(arch)){
                 fread(&codigo, sizeof(char), 1, arch);
                 (*mv).TablaMemoria[i]=codigo;//cargo el CS
                 i++;
             }
-        fclose(arch);
+            fclose(arch);
     }else{
         printf("ERROR(0): el archivo no existe");
         exit(-1);
     }
 }
 
-void Lectura(tmv *mv){
+void Lectura(tmv *mv){   //hay cambios
     char top1,top2,operacion;
     short int cant;
     int op1,op2;
@@ -127,4 +141,41 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant){
             *top1=(instruccion>>6)&0x03;   //saco el tipo de operando 2  A
             *cant=1;
         }
+}
+
+
+void SeteoV2(tmv *mv,unsigned int vec[],unsigned int memory){
+    unsigned int aux=0;
+    int c=0;
+    int i=0;
+    for (i;i<=4;i++){
+        if (vec[i]>0){
+            if (aux>memory){
+                printf("ERROR(4): los segmentos ocupan mas de la memoria disponible");
+                exit(-1);
+            }
+            if (i==1)    //DATA SEGMENT
+                (*mv).TablaRegistros[1]=c<<16;
+            if (i==2)    //EXTRA SEGMENT
+                (*mv).TablaRegistros[2]=c<<16;
+            if (i==3){//STACK SEGMENT
+                (*mv).TablaRegistros[3]=c<<16;
+                (*mv).TablaRegistros[6]=c<<16;
+                (*mv).TablaRegistros[6]+=vec[i]; //seteo el offset al SP igual al size
+            } 
+            if (i==4){   //CONSTANT SEGMENT
+                 (*mv).TablaRegistros[4]=c<<16;
+            }
+            if(i==5){   //ENTRY POINT
+
+            }
+            (*mv).TablaDeSegmentos[c].base=aux;
+            (*mv).TablaDeSegmentos[c].size=vec[i];
+            aux+=vec[i];
+            c++;
+        }else{
+            if(i<5)
+                (*mv).TablaRegistros[i]=-1;
+        }
+    }
 }
