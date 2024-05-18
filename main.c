@@ -12,10 +12,12 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant);
 
 int main(int argc,char *argv[]){
     tmv mv;
-    InicializarRegistros(&mv);
-    InicializarMemoria(argv[1],&mv);
-    if(argv[2]!=NULL && strcmp(argv[2],"-d")==0)
-        MostrarDissasembler(mv);
+    unsigned short int diss=0;
+    //Lectura_argumentos(argc,argv,&diss,&memory,direVMI);
+    Inicia_registro(&mv);
+    Inicia_memoria(argv[1],&mv,memory);
+    if(diss==1)
+        Dissasembler_mostrar(mv);
     Lectura(&mv);
 }
 
@@ -127,6 +129,140 @@ void Lectura(tmv *mv){   //hay cambios
     }
 }
 
+void IMG_debug(tmv mv){
+    FILE *arch=fopen(direVMI,"wb");
+    if (arch==NULL){
+        printf("ERROR no se pudo abrir el archivo binario");
+    }else{
+        long int TD;
+        char vec[memory+200];
+        int j;
+        vec[0]='V';
+        vec[1]='M';
+        vec[2]='I';
+        vec[3]='2';
+        vec[4]='4';
+        vec[5]=1;
+        j=6;
+        for (int k=1;k>=0;k--){
+            vec[j]=((memory/1024)>>(k)*8); 
+            j++;
+        }
+        for (int i=0;i<=15;i++){
+            for (int k=3;k>=0;k--){
+                vec[j]=(mv.TablaRegistros[i])>>(k)*8;
+                j++;
+            }
+        }
+        for (int i=0;i<=7;i++){
+            TD=0;
+            TD=mv.TablaDeSegmentos[i].base;
+            TD=TD<<16;
+            TD+=mv.TablaDeSegmentos[i].size;
+            for (int k=3;k>=0;k--){
+                vec[j]=(TD>>(k)*8);
+                j++;
+            }
+        }
+        int s=0;
+        for(int i=j;i<memory;i++){
+            vec[i]=mv.TablaMemoria[s];
+            s++;
+        }
+        fwrite(vec,sizeof(vec),1,arch);
+    }
+    fclose(arch);
+}
+
+
+void carga_IMG(tmv mv){
+    FILE *arch=fopen(direVMI,"rb");
+    int j=0,memoriaaux,auxreg=0,regflag=3;
+    char leido;
+    if (arch==NULL){
+        printf("ERROR no se pudo abrir el archivo binario");
+    }
+    else{
+        fseek(arch, 6, SEEK_SET);
+        for(int i = 0; i < 2; i++){
+            if(i==1)
+                memoriaaux=(memoriaaux<<8)+leido;
+            else
+                memoriaaux=leido;
+            memory=memoriaaux;
+        }
+        // Leer los registros
+        for (int i = 0; i < 16; i++) {
+        mv.TablaRegistros[i] = 0;
+        for (int k = 3; k >= 0; k--) {
+            unsigned char byte;
+            fread(&byte, sizeof(unsigned char), 1, arch);
+            mv.TablaRegistros[i] |= byte << (k * 8);
+        }
+    }
+
+    // Leer la tabla de descriptores de segmentos
+    for (int i = 0; i < 8; i++) {
+        long int TD = 0;
+        for (int k = 3; k >= 0; k--) {
+            unsigned char byte;
+            fread(&byte, sizeof(unsigned char), 1, arch);
+            TD |= byte << (k * 8);
+        }
+        mv.TablaDeSegmentos[i].base = (short int)(TD >> 16);
+        mv.TablaDeSegmentos[i].size = (short int)(TD & 0xFFFF);
+    }
+
+    // Leer la memoria principal
+    int s = 0;
+    while (fread(&mv.TablaMemoria[s], sizeof(char), 1, arch) == 1) {
+        s++;
+        if (s >= memory) {
+            break; // Evita leer más allá del tamaño de la memoria especificada
+        }
+    }
+    }
+    fclose(arch);    
+}
+
+void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memory,char *direVMI){
+    for (int i=2;i<argc;i++){
+        if (strcmp(argv[i],"-d")==0)
+            (*diss)=1;
+        else{
+            if (argv[i][strlen(argv[i])-1]=='i'){
+                strcpy(direVMI,argv[i]);
+            }else{
+                (*memory)=0;
+                for (int j=0;j<strlen(argv[i]);j++){
+                    (*memory)=(*memory)*10;
+                    (*memory)+=argv[i][j]-48;
+                }
+                (*memory)*=1024;
+            }
+        }
+    }
+}
+
+void chequeo_errores(char top1,char top2,short int cant,char operacion,long int op1,long int op2,tmv mv){
+    if (top1==0){
+        Integridad_op(op1,mv);
+    if (top2==0)
+        Integridad_op(op2,mv);
+    }
+    if (cant==2 && (operacion<0 || operacion>12)){
+        printf("ERROR(1): el codigo de operacion no existe");
+        exit(-1);
+    }
+    if (cant==1 && (operacion<0 || operacion>14)){
+        printf("ERROR(1): el codigo de operacion no existe");
+        exit(-1);
+    }
+    if (cant==0 && (operacion<0 || operacion>1)){
+        printf("ERROR(1): el codigo de operacion no existe");
+        exit(-1);
+    }
+}
 
 void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant){
     if (((instruccion>>4)&0x01)==0){          //miro el 5 bite si es 0 son 2 operandos
