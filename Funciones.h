@@ -114,7 +114,7 @@ int ValorOperando(int op,char top,tmv mv){
 
  int ValorMemoria(int op,tmv mv){
     int resultado=0;
-    int pos_memo=puntero_memo(op,mv);
+    int pos_memo=DireccionMemoria(op,mv);
     unsigned short int cant=celdas_memo(op);
     for (int i=0;i<cant;i++){
         resultado+=(mv.TablaMemoria[pos_memo+i])&0x000000FF;
@@ -430,7 +430,7 @@ void SYS(int op,char top,tmv *mv){
                 if (j!=byt)
                     tot=tot<<8;
             }
-            MostrarMemoria(pos);
+            Muestra_mem(pos);
             Escribe(tot,tipo,byt);
             printf("\n");
             pos+=byt;
@@ -439,7 +439,7 @@ void SYS(int op,char top,tmv *mv){
     //lee por pantalla
     if (valor==1){
         for (int i=1;i<=rep;i++){
-            MostrarMemoria(pos);
+            Muestra_mem(pos);
             Leer(tipo,&tot);
             for (int j=1;j<=byt;j++){
                 (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
@@ -537,6 +537,22 @@ void VerificarOperacion(int op,tmv mv){
         printf("ERROR (3): estas entrando al CS");
         exit(-1);
     }
+}
+
+void Integridad_op(long int op,tmv mv){
+    int valor=0;
+    short int offset=op;
+    int treg=(op&0x00FF0000)>>16;
+    long int reg=mv.TablaRegistros[treg];
+    long int reg_pointer=(reg>>16)&0x1;
+    short int reg_offset=reg;
+    int pos0=mv.TablaDeSegmentos[reg_pointer].size;
+    int pos1=mv.TablaDeSegmentos[reg_pointer].base;
+        valor=offset+reg_offset;
+        if (valor>pos0 || pos0+valor<0 || pos1+valor<pos1){
+            printf("ERROR (3): Segmentation fault");
+            exit(-1);
+        }
 }
 
 void PUSH(int valor,tmv *mv){

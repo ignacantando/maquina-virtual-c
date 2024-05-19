@@ -13,15 +13,20 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant);
 int main(int argc,char *argv[]){
     tmv mv;
     unsigned short int diss=0;
-    //Lectura_argumentos(argc,argv,&diss,&memory,direVMI);
-    Inicia_registro(&mv);
-    Inicia_memoria(argv[1],&mv,memory);
+    Lectura_argumentos(argc,argv,&diss,&memory,direVMI);
+    InicializarRegistros(&mv);
+    if(argv[1][strlen(argv[1])-1]=='x'){  //ACA TENEMOS QUE VER COMO HACER SI EL ARCHIVO VMX NO ESTA, EN ESE CASO SOLO LEERIAMOS EL VMI(el arg[1] va a ser uno de los dos)
+        InicializarMemoria(argv[1],&mv,memory);
+    }
+    else
+        carga_IMG(mv);
     if(diss==1)
-        Dissasembler_mostrar(mv);
+        //Dissasembler_mostrar(mv);
+    printf("entralectura");
+    
     Lectura(&mv);
+    printf("salelectura");
 }
-
-
 
 void InicializarRegistros(tmv *mv){
         (*mv).TablaRegistros[0]=0;//cs
@@ -30,7 +35,6 @@ void InicializarRegistros(tmv *mv){
         (*mv).TablaRegistros[8]=0;//cc
         (*mv).TablaRegistros[9]=0;//ac
 }
-
 
 void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
     char codigo,version,nombre[5];
@@ -82,6 +86,7 @@ void Lectura(tmv *mv){   //hay cambios
     short int cant;
     int op1,op2;
     int corte;
+    char dbg;
     while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
     {
         op1=0;
@@ -112,20 +117,26 @@ void Lectura(tmv *mv){   //hay cambios
             }
         }
         (*mv).TablaRegistros[5]++;// le sumo uno mas al ip antes de que se ejecute la operacion.
-        if (top1==0){
-            VerificarOperacion(op1,*mv);
-            if (top2==0)
-                VerificarOperacion(op2,*mv);
+        chequeo_errores(top1,top2,cant,operacion,op1,op2,*mv);
+        if(cant!=0 || operacion==0xFE){
+             if (Toggle_debbug==1){      //BREAK POINT
+                scanf("%c",&dbg);       //ESPERA EL COMANDO QUE PONGAMOS
+                fflush(stdin);          //VACIA PILA
+                if (dbg=='g')           //SI ES Q SACA EL BREAKPOIT
+                    Toggle_debbug=0;
+                else if(dbg=='q'){
+                    IMG_debug(*mv);
+                    exit(-1);    
+                }
+                Prefuncion(cant,op1,op2,top1,top2,operacion,mv);   //VA A LA FUNCION
+            }else
+                Prefuncion(cant,op1,op2,top1,top2,operacion,mv);//HACE EL CODIGO NORMAL SIN BREAKPOINT
+            if (strcmp(direVMI,"")!=0)  //SI LA DIRECCION ES DISTINTA DE VACIA CARGA LA IMAGEN(DUDA, ACA LA CARGA CADA VEZ QUE LEE UNA OPERACION)
+                 IMG_debug(*mv);
         }
-        if (operacion<0 || operacion>12){
-            if(operacion!=15)
-                printf("ERROR(1): el codigo de operacion no existe");
-            exit(-1);
-        }
-        if(cant!=0)
-            Prefuncion(cant,op1,op2,top1,top2,operacion,mv);
-        else
+        else if(cant==0 && operacion==0xFF){
             (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base;
+        }
     }
 }
 
@@ -173,7 +184,6 @@ void IMG_debug(tmv mv){
     }
     fclose(arch);
 }
-
 
 void carga_IMG(tmv mv){
     FILE *arch=fopen(direVMI,"rb");
@@ -226,7 +236,12 @@ void carga_IMG(tmv mv){
 }
 
 void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memory,char *direVMI){
-    for (int i=2;i<argc;i++){
+    int i;
+    if(argv[strlen(argv[1])-1]=="x") 
+        i=2;
+    else
+        i=1;
+    for (i;i<argc;i++){
         if (strcmp(argv[i],"-d")==0)
             (*diss)=1;
         else{
@@ -254,11 +269,11 @@ void chequeo_errores(char top1,char top2,short int cant,char operacion,long int 
         printf("ERROR(1): el codigo de operacion no existe");
         exit(-1);
     }
-    if (cant==1 && (operacion<0 || operacion>14)){
+    if (cant==1 && (operacion<0 || operacion>13)){
         printf("ERROR(1): el codigo de operacion no existe");
         exit(-1);
     }
-    if (cant==0 && (operacion<0 || operacion>1)){
+    if (cant==0 && (operacion!=15 || operacion!=14)){
         printf("ERROR(1): el codigo de operacion no existe");
         exit(-1);
     }
@@ -278,7 +293,6 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant){
             *cant=1;
         }
 }
-
 
 void SeteoV2(tmv *mv,unsigned int vec[],unsigned int memory){
     unsigned int aux=0;
