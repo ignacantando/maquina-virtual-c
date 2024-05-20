@@ -15,6 +15,7 @@ typedef struct{
 unsigned short int Toggle_debbug=0;
 char direVMI[50]="";
 unsigned int memory=16384;
+unsigned short int entry;
 
 typedef void Funciones2op(int op1,char top1,int valor,tmv *mv);
 void MOV(int op1,char top1,int valor,tmv *mv);
@@ -44,13 +45,13 @@ void LDH(int valor,tmv *mv);
 void LDL(int valor,tmv *mv);
 void PUSH(int valor,tmv *mv);
 void CALL(int valor,tmv *mv);
-Funciones1opTipo2 *tipo2[]={0,JMP,JZ,JP,JN,JNZ,JNP,JNN,LDL,LDH,PUSH,0,CALL};//puede estar mal
+Funciones1opTipo2 *tipo2[]={0,JMP,JZ,JP,JN,JNZ,JNP,JNN,LDL,LDH,0,PUSH,0,CALL};//puede estar mal
 
 typedef void Funciones1opTipo1(int op,char top,tmv *mv);
 void NOT(int op,char top,tmv *mv);
 void SYS(int op,char top,tmv *mv);
 void POP(int op,char top,tmv *mv);
-Funciones1opTipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,NOT,0,0,0,POP,0};//puede estar mal
+Funciones1opTipo1 *tipo1[]={SYS,0,0,0,0,0,0,0,0,0,NOT,0,POP,0,0};//puede estar mal
 
 void RET(tmv *mv);
 
@@ -78,7 +79,7 @@ void Prefuncion(short int cant,int op1,int op2,char top1,char top2,char operacio
         if (cant==0)
             RET(mv);
         else{
-            if (operacion<10 && operacion>=1 || operacion==11 || operacion==13){
+            if ((operacion<10 && operacion>=1) || operacion==11 || operacion==13){
                 valor=ValorOperando(op1,top1,*mv);
                 tipo2[operacion](valor,mv);
             }
@@ -457,7 +458,7 @@ void SYS(int op,char top,tmv *mv){
         LeeString(pos,mv);
     }
     if (valor==7)
-        system("clear");
+        system("cls");
     if (valor==0xF && strcmp(direVMI,"")!=0)
         Toggle_debbug=1;
 }
@@ -541,11 +542,11 @@ void VerificarOperacion(int op,tmv mv){
 
 void Integridad_op(long int op,tmv mv){
     int valor=0;
-    short int offset=op;
+    short int offset=op&0x0000FFFF;      //(0000)segmento (0003)offset
     int treg=(op&0x00FF0000)>>16;
     long int reg=mv.TablaRegistros[treg];
     long int reg_pointer=(reg>>16)&0x1;
-    short int reg_offset=reg;
+    short int reg_offset=reg&0x0000FFFF;
     int pos0=mv.TablaDeSegmentos[reg_pointer].size;
     int pos1=mv.TablaDeSegmentos[reg_pointer].base;
         valor=offset+reg_offset;
@@ -572,8 +573,9 @@ void PUSH(int valor,tmv *mv){
 }
 
 void POP(int op,char top,tmv *mv){
+    printf("POP");
     int aux=0;
-    int ss_pointer=(((*mv).TablaRegistros[4]&0xFFFF0000)>>16);
+    int ss_pointer=(((*mv).TablaRegistros[6]&0xFFFF0000)>>16);
     int sp_offset=(*mv).TablaRegistros[6]&0x0000FFFF;
     int pos_ss=(*mv).TablaDeSegmentos[ss_pointer].base;
     if (sp_offset+4>(*mv).TablaDeSegmentos[ss_pointer].size){
@@ -598,4 +600,5 @@ void CALL(int valor,tmv *mv){
 
 void RET(tmv *mv){
     POP(0x05,2,mv);  //(*mv).TablaRegistros[5]
+    printf("tabla=%d",(*mv).TablaRegistros[5]);
 }
