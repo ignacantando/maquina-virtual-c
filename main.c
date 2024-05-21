@@ -98,7 +98,7 @@ void Lectura(tmv *mv){   //hay cambios
         op1=0;
         op2=0;
         operacion=(*mv).TablaMemoria[(*mv).TablaRegistros[5]]&0x0F;
-        printf("operacion: %1X ",operacion);
+        //printf("operacion: %1X ",operacion);
         CantidadOperandos((*mv).TablaMemoria[(*mv).TablaRegistros[5]],&top1,&top2,&cant);
         //printf("top1=%c,top2=%c,cant=%d,posicion=%d",top1,top2,cant,(*mv).TablaRegistros[5]);
         //printf("posicion=%d|| cantidad=%d",(*mv).TablaRegistros[5],cant);
@@ -249,6 +249,7 @@ void cargarIMG(tmv *mv){
             }
         }
     }
+    entry=(*mv).TablaRegistros[5];
     fclose(arch);    
 }
 
