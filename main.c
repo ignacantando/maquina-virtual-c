@@ -16,7 +16,7 @@ int main(int argc,char *argv[]){
     LecturaArgumentos(argc,argv,&diss,&memory,direVMI);
     InicializarRegistros(&mv);
     if(argv[1][strlen(argv[1])-1]=='x'){  //ACA TENEMOS QUE VER COMO HACER SI EL ARCHIVO VMX NO ESTA, EN ESE CASO SOLO LEERIAMOS EL VMI(el arg[1] va a ser uno de los dos)
-    InicializarMemoria(argv[1],&mv,memory);
+        InicializarMemoria(argv[1],&mv,memory);
     }
     else
         cargarIMG(&mv);
@@ -42,6 +42,7 @@ void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
         fread(nombre,sizeof(nombre),1,arch);//lee el titulo
         fread(&version,sizeof(char),1,arch);//lee la version
         if (version==2){
+            ver=1;
             unsigned int vec[6];
             for (int j=0;j<6;j++){
                 valor=0;
@@ -67,6 +68,10 @@ void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
             (*mv).TablaDeSegmentos[0].size=valor;
             (*mv).TablaDeSegmentos[1].base=valor;
             (*mv).TablaDeSegmentos[1].size=sizeof((*mv).TablaMemoria)-valor; 
+            (*mv).TablaRegistros[1]=0x00010000;
+            (*mv).TablaRegistros[0]=0x00000000;
+            entry=0;
+            ver=0;
         }
         while (!feof(arch) && (i-flag)< (*mv).TablaDeSegmentos[1].size){
             fread(&codigo, sizeof(char), 1, arch);
@@ -99,8 +104,11 @@ void Lectura(tmv *mv){   //hay cambios
         op2=0;
         operacion=(*mv).TablaMemoria[(*mv).TablaRegistros[5]]&0x0F;
         //printf("operacion: %1X ",operacion);
+        //if((*mv).TablaRegistros[5]==29)
+            //mue(*mv);
+       // printf("operacion: %2.2X ",operacion);
         CantidadOperandos((*mv).TablaMemoria[(*mv).TablaRegistros[5]],&top1,&top2,&cant);
-        //printf("top1=%c,top2=%c,cant=%d,posicion=%d",top1,top2,cant,(*mv).TablaRegistros[5]);
+        //printf("top1=%d,top2=%d,cant=%d,posicion=%d",top1,top2,cant,(*mv).TablaRegistros[5]);
         //printf("posicion=%d|| cantidad=%d",(*mv).TablaRegistros[5],cant);
         corte=top1^0x3;//le asigno el opuesto del tipo2 el cual representa la longitud
         if (cant==2){
@@ -176,7 +184,6 @@ void generarIMG(tmv mv){
             vec[j]=((memoryaux)>>(k)*8); 
             j++;
         }
-        printf("LAPOSTA=%d",vec[7]);
         for (int i=0;i<=15;i++){
             for (int k=3;k>=0;k--){
                 vec[j]=(mv.TablaRegistros[i])>>(k)*8;
@@ -215,14 +222,12 @@ void cargarIMG(tmv *mv){
         fread(&leido, sizeof(unsigned char), 1, arch);
         fread(&leido, sizeof(unsigned char), 1, arch);
         memory=leido;
-        printf("memo=%d",memory);
         // Leer los registros
         for (int i = 0; i < 16; i++) {
             (*mv).TablaRegistros[i] = 0;
             for (int k = 3; k >= 0; k--) {
                 unsigned char byte;
                 fread(&byte, sizeof(unsigned char), 1, arch);
-                //printf("byte1=%2.2X",byte);
                 (*mv).TablaRegistros[i] |= byte << (k * 8);
             }
         }
@@ -233,7 +238,6 @@ void cargarIMG(tmv *mv){
             for (int k = 3; k >= 0; k--) {
                 unsigned char byte;
                 fread(&byte, sizeof(unsigned char), 1, arch);
-                //printf("byte2=%2.2X",byte);
                 TD |= byte << (k * 8);
             }
             (*mv).TablaDeSegmentos[i].base = (short int)(TD >> 16);
@@ -278,9 +282,9 @@ void LecturaArgumentos(int argc,char *argv[],short int *diss,unsigned int *memor
 }
 
 void Errores(char top1,char top2,short int cant,char operacion,int op1,int op2,tmv mv){
-    if (top1==0){
+    if (top1==0 && top2!=0 ){
         VerificarOperacion(op1,mv);
-    if (top2==0)
+    if (top2==0 && top1!=0 )
         VerificarOperacion(op2,mv);
     }
     if (cant==2 && (operacion<0 || operacion>12)){

@@ -16,6 +16,7 @@ unsigned short int breakpointt=0;
 char direVMI[50]="";
 unsigned int memory=16384;
 unsigned int entry;
+unsigned int ver;
 
 typedef void Funciones2op(int op1,char top1,int valor,tmv *mv);
 void MOV(int op1,char top1,int valor,tmv *mv);
@@ -142,9 +143,11 @@ unsigned short int celdas_memo(int op){
 int DireccionMemoria(int op,tmv mv){
     short int offset=(op&0x0000FFFF);
     int treg=(op&0x0F0000)>>16;
+    //printf("treg=%d",treg);
     int reg=mv.TablaRegistros[treg];
     int reg_pointer=reg>>16;
     short int reg_offset=(reg&0x0000FFFF);
+    //printf("offset=%d, regoffset=%d",offset,reg_offset);
     return mv.TablaDeSegmentos[reg_pointer].base+reg_offset+offset;
 }
 
@@ -355,7 +358,7 @@ void RND(int op1,char top1,int valor2,tmv *mv){
 }
 
 void JMP(int valor,tmv *mv){
-    (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base+valor;  //pone el IP en el valor que le damos
+    (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[ver].base+valor;  //pone el IP en el valor que le damos
 }
 
 void JZ(int valor,tmv *mv){
