@@ -1,6 +1,5 @@
-        VALOR EQU "ssss"
-
-SUMA:       PUSH BP
+TEXTO EQU "hola pt"
+      SUMA: PUSH BP
             MOV BP, SP
             PUSH EBX
             MOV EAX, 0
@@ -26,10 +25,14 @@ _START: MOV AL, %01
         CALL SUMA
         ADD SP, 4
         MOV [4], eax
+        SYS %F
         MOV EDX, DS
         ADD EDX, 4
         MOV CL, 1
         MOV CH, 4
         MOV AL, 1
         SYS %2
+        MOV EDX, KS
+        ADD EDX, TEXTO
+        SYS %4
         STOP

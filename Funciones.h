@@ -8,14 +8,14 @@ typedef struct{
 typedef struct{
     char TablaMemoria[MAX_M];
     int TablaRegistros[16];
-    tds TablaDeSegmentos[8];
+    tds TablaDeSegmentos[5];
 }tmv; //tipo de maquina virtual
 
 //variables globales del programa final
-unsigned short int Toggle_debbug=0;
+unsigned short int breakpointt=0; 
 char direVMI[50]="";
 unsigned int memory=16384;
-unsigned short int entry;
+unsigned int entry;
 
 typedef void Funciones2op(int op1,char top1,int valor,tmv *mv);
 void MOV(int op1,char top1,int valor,tmv *mv);
@@ -95,7 +95,7 @@ int ValorOperando(int op,char top,tmv mv){
     int resultado=0;
     if (top==2){
             if (tiporeg==3)
-                resultado=(short int)(mv.TablaRegistros[(op&0x0F)]&0x0000FFFF);
+                resultado=(int)(mv.TablaRegistros[(op&0x0F)]&0x0000FFFF);
             if (tiporeg==2)
                 resultado=(char)((mv.TablaRegistros[(op&0x0F)]&0x0000FF00)>>8);
             if (tiporeg==1){
@@ -355,7 +355,7 @@ void RND(int op1,char top1,int valor2,tmv *mv){
 }
 
 void JMP(int valor,tmv *mv){
-    (*mv).TablaRegistros[5]=valor;  //pone el IP en el valor que le damos
+    (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base+valor;  //pone el IP en el valor que le damos
 }
 
 void JZ(int valor,tmv *mv){
@@ -431,7 +431,7 @@ void SYS(int op,char top,tmv *mv){
                 if (j!=byt)
                     tot=tot<<8;
             }
-            Muestra_mem(pos);
+            MostrarMemoria(pos);
             Escribe(tot,tipo,byt);
             printf("\n");
             pos+=byt;
@@ -440,7 +440,7 @@ void SYS(int op,char top,tmv *mv){
     //lee por pantalla
     if (valor==1){
         for (int i=1;i<=rep;i++){
-            Muestra_mem(pos);
+            MostrarMemoria(pos);
             Leer(tipo,&tot);
             for (int j=1;j<=byt;j++){
                 (*mv).TablaMemoria[pos+j-1]=(tot>>(byt-j)*8)&0x000000FF;
@@ -459,11 +459,11 @@ void SYS(int op,char top,tmv *mv){
     }
     if (valor==7)
         system("cls");
-    if (valor==0xF && strcmp(direVMI,"")!=0)
-        Toggle_debbug=1;
+    if (valor==15 && strcmp(direVMI,"")!=0)
+        breakpointt=1;
 }
 
-void EscribeString(char *palabra,unsigned int tamanostr,long int pos,tmv *mv){
+void EscribeString(char *palabra,unsigned int tamanostr,int pos,tmv *mv){
     int i=0;
     while (i<strlen(palabra) && i!=tamanostr){
         (*mv).TablaMemoria[pos+i]=palabra[i];
@@ -475,7 +475,7 @@ void EscribeString(char *palabra,unsigned int tamanostr,long int pos,tmv *mv){
         (*mv).TablaMemoria[pos+i+1]=0x00;
 }
 
-void LeeString(long int pos,tmv *mv){
+void LeeString(int pos,tmv *mv){
     int i=0;
     while ((*mv).TablaMemoria[pos+i]!=0x00){
         printf("%c",(*mv).TablaMemoria[pos+i]);
@@ -522,34 +522,15 @@ void Escribe(int valor,unsigned char tipo,int tamano){
 }
 
 void VerificarOperacion(int op,tmv mv){
-    char pos0=mv.TablaDeSegmentos[1].base;
-    short int valor=0;
-    int offset=(op&0x0000FFFF);
-    int treg=(op&0x00FF0000)>>16;
-    int reg=mv.TablaRegistros[treg];
-    int punteroRegistro=reg>>16;
-    int offsetRegistro=reg&0x0000FFFF;
-    if (reg==0){
-        valor=offset;
-    }else{
-        valor=offset+mv.TablaDeSegmentos[punteroRegistro].base+offsetRegistro;
-    }
-    if (valor<pos0){
-        printf("ERROR (3): estas entrando al CS");
-        exit(-1);
-    }
-}
-
-void Integridad_op(long int op,tmv mv){
     int valor=0;
     short int offset=op&0x0000FFFF;      //(0000)segmento (0003)offset
     int treg=(op&0x00FF0000)>>16;
-    long int reg=mv.TablaRegistros[treg];
-    long int reg_pointer=(reg>>16)&0x1;
+    int reg=mv.TablaRegistros[treg];
+    int reg_pointer=(reg>>16);
     short int reg_offset=reg&0x0000FFFF;
     int pos0=mv.TablaDeSegmentos[reg_pointer].size;
     int pos1=mv.TablaDeSegmentos[reg_pointer].base;
-        valor=offset+reg_offset;
+    valor=offset+reg_offset;
         if (valor>pos0 || pos0+valor<0 || pos1+valor<pos1){
             printf("ERROR (3): Segmentation fault");
             exit(-1);
@@ -573,7 +554,6 @@ void PUSH(int valor,tmv *mv){
 }
 
 void POP(int op,char top,tmv *mv){
-    printf("POP");
     int aux=0;
     int ss_pointer=(((*mv).TablaRegistros[6]&0xFFFF0000)>>16);
     int sp_offset=(*mv).TablaRegistros[6]&0x0000FFFF;
@@ -600,5 +580,4 @@ void CALL(int valor,tmv *mv){
 
 void RET(tmv *mv){
     POP(0x05,2,mv);  //(*mv).TablaRegistros[5]
-    printf("tabla=%d",(*mv).TablaRegistros[5]);
 }

@@ -13,16 +13,16 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant);
 int main(int argc,char *argv[]){
     tmv mv;
     unsigned short int diss=0;
-    Lectura_argumentos(argc,argv,&diss,&memory,direVMI);
+    LecturaArgumentos(argc,argv,&diss,&memory,direVMI);
     InicializarRegistros(&mv);
     if(argv[1][strlen(argv[1])-1]=='x'){  //ACA TENEMOS QUE VER COMO HACER SI EL ARCHIVO VMX NO ESTA, EN ESE CASO SOLO LEERIAMOS EL VMI(el arg[1] va a ser uno de los dos)
-        InicializarMemoria(argv[1],&mv,memory);
+    InicializarMemoria(argv[1],&mv,memory);
     }
     else
-        carga_IMG(mv);
+        cargarIMG(&mv);
     if(diss==1)
         MostrarDissasembler(mv);
-    //mue(mv);
+    mue(mv);
     Lectura(&mv);
 }
 
@@ -35,8 +35,8 @@ void InicializarRegistros(tmv *mv){
 void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
     char codigo,version,nombre[5];
     FILE *arch=fopen(direccion,"rb");
-    int i;
-    unsigned short int valor=0;
+    int i,flag;
+    unsigned int valor=0;
     unsigned char val=0;
     if (arch!=NULL){
         fread(nombre,sizeof(nombre),1,arch);//lee el titulo
@@ -52,8 +52,10 @@ void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
                 valor+=val;
                 vec[j]=valor;  //guarda el tamanio del segmento
             }
-            SeteoV2(mv,vec,memory);
-            i=(*mv).TablaRegistros[0];
+            SetearRegistros(mv,vec,memory);
+            i=vec[4]+1;
+            flag=i;
+            entry+=i;
         }
         else{
             fread(&val,sizeof(char),1,arch);
@@ -66,13 +68,18 @@ void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
             (*mv).TablaDeSegmentos[1].base=valor;
             (*mv).TablaDeSegmentos[1].size=sizeof((*mv).TablaMemoria)-valor; 
         }
+        while (!feof(arch) && (i-flag)< (*mv).TablaDeSegmentos[1].size){
+            fread(&codigo, sizeof(char), 1, arch);
+            (*mv).TablaMemoria[i]=codigo;//cargo el CS
+            i++;
+        }
+        i=0;
         while (!feof(arch)){
-                fread(&codigo, sizeof(char), 1, arch);
-                (*mv).TablaMemoria[i]=codigo;//cargo el CS
-                i++;
-
-            }
-            fclose(arch);
+            fread(&codigo, sizeof(char), 1, arch);    
+            (*mv).TablaMemoria[i]=codigo;//cargo el CS
+            i++;
+        }
+        fclose(arch);
     }else{
         printf("ERROR(0): el archivo no existe");
         exit(-1);
@@ -86,12 +93,12 @@ void Lectura(tmv *mv){   //hay cambios
     int corte;
     char dbg;
     (*mv).TablaRegistros[5]=entry;
-    while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[1].base)
+    while ((*mv).TablaRegistros[5]!=(*mv).TablaDeSegmentos[2].base)
     {
         op1=0;
         op2=0;
         operacion=(*mv).TablaMemoria[(*mv).TablaRegistros[5]]&0x0F;
-        //printf("operacion: %1X ",operacion);
+        printf("operacion: %1X ",operacion);
         CantidadOperandos((*mv).TablaMemoria[(*mv).TablaRegistros[5]],&top1,&top2,&cant);
         //printf("top1=%c,top2=%c,cant=%d,posicion=%d",top1,top2,cant,(*mv).TablaRegistros[5]);
         //printf("posicion=%d|| cantidad=%d",(*mv).TablaRegistros[5],cant);
@@ -120,25 +127,23 @@ void Lectura(tmv *mv){   //hay cambios
         }
         (*mv).TablaRegistros[5]++;// le sumo uno mas al ip antes de que se ejecute la operacion.
         if(cant!=0)
-            chequeo_errores(top1,top2,cant,operacion,op1,op2,*mv);
+            Errores(top1,top2,cant,operacion,op1,op2,*mv);
         if(cant!=0 || operacion==0xFE){
-             if (Toggle_debbug==1){      //BREAK POINT
+             if (breakpointt==1){//BREAK POINT
+                generarIMG(*mv);      
                 scanf("%c",&dbg);       //ESPERA EL COMANDO QUE PONGAMOS
                 fflush(stdin);          //VACIA PILA
                 if (dbg=='g')           //SI ES Q SACA EL BREAKPOIT
-                    Toggle_debbug=0;
+                    breakpointt=0;
                 else if(dbg=='q'){
-                    IMG_debug(*mv);
                     exit(-1);    
                 }
                 Prefuncion(cant,op1,op2,top1,top2,operacion,mv);   //VA A LA FUNCION
             }else
                 Prefuncion(cant,op1,op2,top1,top2,operacion,mv);//HACE EL CODIGO NORMAL SIN BREAKPOINT
-            if (strcmp(direVMI,"")!=0)  //SI LA DIRECCION ES DISTINTA DE VACIA CARGA LA IMAGEN(DUDA, ACA LA CARGA CADA VEZ QUE LEE UNA OPERACION)
-                 IMG_debug(*mv);
         }
         else if(cant==0 && operacion==15){
-            (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[1].base;
+            (*mv).TablaRegistros[5]=(*mv).TablaDeSegmentos[2].base;
         }
         else{
             Prefuncion(cant,op1,op2,top1,top2,operacion,mv);
@@ -147,19 +152,18 @@ void Lectura(tmv *mv){   //hay cambios
 }
 
 void mue(tmv mv){
-//int pos=(mv).TablaDeSegmentos[1].base;
-//printf("[0] %d %d %d %d \n",(mv).TablaMemoria[pos],(mv).TablaMemoria[pos+1],(mv).TablaMemoria[pos+2],(mv).TablaMemoria[pos+3]);
-
 for(int i=0;i<=250;i++)
     printf("i=%d  =%1X \n",i,mv.TablaMemoria[i]);
 }
-void IMG_debug(tmv mv){
+
+void generarIMG(tmv mv){
     FILE *arch=fopen(direVMI,"wb");
+    int memoryaux=memory/1024;
     if (arch==NULL){
         printf("ERROR no se pudo abrir el archivo binario");
     }else{
-        long int TD;
-        char vec[memory+200];
+        int TD;
+        char vec[16384+200];
         int j;
         vec[0]='V';
         vec[1]='M';
@@ -169,16 +173,17 @@ void IMG_debug(tmv mv){
         vec[5]=1;
         j=6;
         for (int k=1;k>=0;k--){
-            vec[j]=((memory/1024)>>(k)*8); 
+            vec[j]=((memoryaux)>>(k)*8); 
             j++;
         }
+        printf("LAPOSTA=%d",vec[7]);
         for (int i=0;i<=15;i++){
             for (int k=3;k>=0;k--){
                 vec[j]=(mv.TablaRegistros[i])>>(k)*8;
                 j++;
             }
         }
-        for (int i=0;i<=7;i++){
+        for (int i=0;i<5;i++){
             TD=0;
             TD=mv.TablaDeSegmentos[i].base;
             TD=TD<<16;
@@ -189,7 +194,7 @@ void IMG_debug(tmv mv){
             }
         }
         int s=0;
-        for(int i=j;i<memory;i++){
+        for(int i=j;i<16384;i++){
             vec[i]=mv.TablaMemoria[s];
             s++;
         }
@@ -198,7 +203,7 @@ void IMG_debug(tmv mv){
     fclose(arch);
 }
 
-void carga_IMG(tmv mv){
+void cargarIMG(tmv *mv){
     FILE *arch=fopen(direVMI,"rb");
     int j=0,memoriaaux,auxreg=0,regflag=3;
     char leido;
@@ -207,48 +212,47 @@ void carga_IMG(tmv mv){
     }
     else{
         fseek(arch, 6, SEEK_SET);
-        for(int i = 0; i < 2; i++){
-            if(i==1)
-                memoriaaux=(memoriaaux<<8)+leido;
-            else
-                memoriaaux=leido;
-            memory=memoriaaux;
-        }
+        fread(&leido, sizeof(unsigned char), 1, arch);
+        fread(&leido, sizeof(unsigned char), 1, arch);
+        memory=leido;
+        printf("memo=%d",memory);
         // Leer los registros
         for (int i = 0; i < 16; i++) {
-        mv.TablaRegistros[i] = 0;
-        for (int k = 3; k >= 0; k--) {
-            unsigned char byte;
-            fread(&byte, sizeof(unsigned char), 1, arch);
-            mv.TablaRegistros[i] |= byte << (k * 8);
+            (*mv).TablaRegistros[i] = 0;
+            for (int k = 3; k >= 0; k--) {
+                unsigned char byte;
+                fread(&byte, sizeof(unsigned char), 1, arch);
+                //printf("byte1=%2.2X",byte);
+                (*mv).TablaRegistros[i] |= byte << (k * 8);
+            }
         }
-    }
 
-    // Leer la tabla de descriptores de segmentos
-    for (int i = 0; i < 8; i++) {
-        long int TD = 0;
-        for (int k = 3; k >= 0; k--) {
-            unsigned char byte;
-            fread(&byte, sizeof(unsigned char), 1, arch);
-            TD |= byte << (k * 8);
+        // Leer la tabla de descriptores de segmentos
+        for (int i = 0; i < 5; i++) {
+            int TD = 0;
+            for (int k = 3; k >= 0; k--) {
+                unsigned char byte;
+                fread(&byte, sizeof(unsigned char), 1, arch);
+                //printf("byte2=%2.2X",byte);
+                TD |= byte << (k * 8);
+            }
+            (*mv).TablaDeSegmentos[i].base = (short int)(TD >> 16);
+            (*mv).TablaDeSegmentos[i].size = (short int)(TD & 0xFFFF);
         }
-        mv.TablaDeSegmentos[i].base = (short int)(TD >> 16);
-        mv.TablaDeSegmentos[i].size = (short int)(TD & 0xFFFF);
-    }
 
-    // Leer la memoria principal
-    int s = 0;
-    while (fread(&mv.TablaMemoria[s], sizeof(char), 1, arch) == 1) {
-        s++;
-        if (s >= memory) {
-            break; // Evita leer más allá del tamaño de la memoria especificada
+        // Leer la memoria principal
+        int s = 0;
+        while (fread(&(*mv).TablaMemoria[s], sizeof(char), 1, arch) == 1) {
+            s++;
+            if (s >=16384 ) {
+                break; // Evita leer más allá del tamaño de la memoria especificada
+            }
         }
-    }
     }
     fclose(arch);    
 }
 
-void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memory,char *direVMI){
+void LecturaArgumentos(int argc,char *argv[],short int *diss,unsigned int *memory,char *direVMI){
     int i;
     if(argv[strlen(argv[1])-1]=="x") 
         i=2;
@@ -260,7 +264,7 @@ void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memo
         else{
             if (argv[i][strlen(argv[i])-1]=='i'){
                 strcpy(direVMI,argv[i]);
-            }else{
+            }else if(argv[i][0]=='m'){
                 (*memory)=0;
                 for (int j=0;j<strlen(argv[i]);j++){
                     (*memory)=(*memory)*10;
@@ -270,14 +274,13 @@ void Lectura_argumentos(int argc,char *argv[],short int *diss,unsigned int *memo
             }
         }
     }
-    printf("DISS=%d",(*diss));
 }
 
-void chequeo_errores(char top1,char top2,short int cant,char operacion,long int op1,long int op2,tmv mv){
+void Errores(char top1,char top2,short int cant,char operacion,int op1,int op2,tmv mv){
     if (top1==0){
-        Integridad_op(op1,mv);
+        VerificarOperacion(op1,mv);
     if (top2==0)
-        Integridad_op(op2,mv);
+        VerificarOperacion(op2,mv);
     }
     if (cant==2 && (operacion<0 || operacion>12)){
         printf("ERROR(1): el codigo de operacion no existe");
@@ -308,16 +311,26 @@ void CantidadOperandos(char instruccion,char *top1,char *top2,short int *cant){
         }
 }
 
-void SeteoV2(tmv *mv,unsigned int vec[],unsigned int memory){
+void SetearRegistros(tmv *mv,unsigned int vec[],unsigned int memory){
     unsigned int aux=0;
     int c=0,corrimiento;
     int i=0;
 
-    printf("vec4=%d",vec[4]);
-    if(vec[4]==0)
+    if(vec[4]==0){
         corrimiento=0;
-    else
+        (*mv).TablaRegistros[4]=-1;
+        (*mv).TablaDeSegmentos[c].base=aux;
+        (*mv).TablaDeSegmentos[c].size=vec[4];
+        c++;
+    }
+    else{
         corrimiento=1;
+        (*mv).TablaRegistros[4]=c<<16;
+        (*mv).TablaDeSegmentos[c].base=aux;
+        (*mv).TablaDeSegmentos[c].size=vec[4]+1;
+        aux+=vec[4]+1;
+        c++;
+    }
 
     for (i;i<=6;i++){
         if (vec[i]>0){
@@ -326,23 +339,18 @@ void SeteoV2(tmv *mv,unsigned int vec[],unsigned int memory){
                 exit(-1);
             }
             if(i==0)
-                (*mv).TablaRegistros[0]=(c+corrimiento)<<16;
+                (*mv).TablaRegistros[0]=(i+1)<<16;
             if (i==1)    //DATA SEGMENT
-                (*mv).TablaRegistros[1]=(c+corrimiento)<<16;
+                (*mv).TablaRegistros[1]=(i+1)<<16;
             if (i==2)    //EXTRA SEGMENT
-                (*mv).TablaRegistros[2]=(c+corrimiento)<<16;
+                (*mv).TablaRegistros[2]=(i+1)<<16;
             if (i==3){//STACK SEGMENT
-                printf("entry=%d",entry);
-                (*mv).TablaRegistros[3]=(c+corrimiento)<<16;
-                (*mv).TablaRegistros[6]=(c+corrimiento)<<16;
+                (*mv).TablaRegistros[3]=(i+1)<<16;
+                (*mv).TablaRegistros[6]=(i+1)<<16;
                 (*mv).TablaRegistros[6]+=vec[i]; //seteo el offset al SP igual al size
             } 
-            if (i==4){   //CONSTANT SEGMENT
-                 (*mv).TablaRegistros[4]=c<<16;
-            }
             if(i==5){   //ENTRY POINT
                 entry=vec[i];
-                printf("entry=%d",entry);
             }
             (*mv).TablaDeSegmentos[c].base=aux;
             (*mv).TablaDeSegmentos[c].size=vec[i];
@@ -350,7 +358,7 @@ void SeteoV2(tmv *mv,unsigned int vec[],unsigned int memory){
             c++;
         }else{
             if(i<5)
-                (*mv).TablaRegistros[i]=-1;
+                (*mv).TablaRegistros[i]=-1;    
         }
     }
 }

@@ -2,9 +2,9 @@
 #define MAXREG 16
 void MostrarDissasembler(tmv mv);
 void Muesta_dissasembler(int cant,int op1,int op2,char top1,char top2,char operacion);
-void Muestra_dissasembler(int cant,int op1,int op2,char top1,char top2,char operacion);
-void Muestra_byte(char valor);
-void Muestra_mem(int ip);
+void MostrarOperando(int cant,int op,char top);
+void MostrarByte(char valor);
+void MostrarMemoria(int ip);
 
 typedef char* nmonico;
 nmonico nmonico1[MAX]={"MOV","ADD","SUB","SWAP","MUL","DIV","CMP","SHL","SHR","AND","OR","XOR","RND"};
@@ -18,22 +18,22 @@ void MostrarDissasembler(tmv mv){
     short int espacios,cant;
     int op1,op2;
     int corte;
-    int cont=0;
+    int cont=(mv).TablaDeSegmentos[1].base;
     printf("----------------------------------------------------\n");
-    while (cont<mv.TablaDeSegmentos[1].base){
+    while (cont<mv.TablaDeSegmentos[2].base){
         espacios=0;
         op1=0;
         op2=0;
         operacion=mv.TablaMemoria[cont]&0x0F;
-        Muestra_mem(cont);
-        Muestra_byte(mv.TablaMemoria[cont]);
+        MostrarMemoria(cont);
+        MostrarByte(mv.TablaMemoria[cont]);
         espacios++;
         CantidadOperandos(mv.TablaMemoria[cont],&top1,&top2,&cant);
         corte=top1^0x3;
         if (cant==2){
             for (int i=1;i<=corte;i++){
                 cont++;
-                Muestra_byte(mv.TablaMemoria[cont]);
+                MostrarByte(mv.TablaMemoria[cont]);
                 op1+=(mv.TablaMemoria[cont])&0x000000FF;
                 if (i!=corte)
                     op1=op1<<8;
@@ -42,7 +42,7 @@ void MostrarDissasembler(tmv mv){
             corte=top2^0x3;
             for (int i=1;i<=corte;i++){
                 cont++;
-                Muestra_byte(mv.TablaMemoria[cont]);
+                MostrarByte(mv.TablaMemoria[cont]);
                 op2+=(mv.TablaMemoria[cont])&0x000000FF;
                 if (i!=corte)
                     op2=op2<<8;
@@ -54,7 +54,7 @@ void MostrarDissasembler(tmv mv){
             else
                 for (int i=1;i<=corte;i++){
                     cont++;
-                    Muestra_byte(mv.TablaMemoria[cont]);
+                    MostrarByte(mv.TablaMemoria[cont]);
                     op1+=(mv.TablaMemoria[cont])&0x000000FF;
                     if (i!=corte)
                         op1=op1<<8;
@@ -70,11 +70,11 @@ void MostrarDissasembler(tmv mv){
     printf("------------------------\n");
 }
 
-void Muestra_mem(int ip){
+void MostrarMemoria(int ip){
     printf("[%4.4X] ",ip);
 }
 
-void Muestra_byte(char valor){
+void MostrarByte(char valor){
     printf("%2.2X ",valor&0xFF);
 }
 
@@ -92,17 +92,17 @@ void Muestra_dissasembler(int cant,int op1,int op2,char top1,char top2,char oper
         else
             printf("RET");
     else if(cant==1)
-        Muestra_op(cant,op2,top2);
+        MostrarOperando(cant,op2,top2);
     if (cant==2){
-        Muestra_op(cant,op1,top1);
+        MostrarOperando(cant,op1,top1);
         printf(",");
-        Muestra_op(cant,op2,top2);
+        MostrarOperando(cant,op2,top2);
     }
     printf("\n");
 }
 
 
-void Muestra_op(int cant,int op,char top){
+void MostrarOperando(int cant,int op,char top){
     char tiporeg;
     if (top==1)
         printf("%X",op);
