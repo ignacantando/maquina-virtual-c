@@ -81,7 +81,7 @@ void InicializarMemoria(char *direccion,tmv *mv,unsigned int memory){
         i=0;
         while (!feof(arch)){
             fread(&codigo, sizeof(char), 1, arch);    
-            (*mv).TablaMemoria[i]=codigo;//cargo el CS
+            (*mv).TablaMemoria[i]=codigo;//cargo el KS
             i++;
         }
         fclose(arch);
@@ -282,9 +282,9 @@ void LecturaArgumentos(int argc,char *argv[],short int *diss,unsigned int *memor
 }
 
 void Errores(char top1,char top2,short int cant,char operacion,int op1,int op2,tmv mv){
-    if (top1==0 && top2!=0 ){
+    if (top1==0){
         VerificarOperacion(op1,mv);
-    if (top2==0 && top1!=0 )
+    if (top2==0)
         VerificarOperacion(op2,mv);
     }
     if (cant==2 && (operacion<0 || operacion>12)){
