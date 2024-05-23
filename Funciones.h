@@ -119,7 +119,6 @@ int ValorOperando(int op,char top,tmv mv){
     int resultado=0;
     int pos_memo=DireccionMemoria(op,mv);
     unsigned short int cant=celdas_memo(op);
-    //printf("CELDAS=%d, DIRECCION=%d",cant,pos_memo);
     for (int i=0;i<cant;i++){
         resultado+=(mv.TablaMemoria[pos_memo+i])&0x000000FF;
         if (i!=cant-1)
@@ -145,11 +144,9 @@ unsigned short int celdas_memo(int op){
 int DireccionMemoria(int op,tmv mv){
     short int offset=(op&0x0000FFFF);
     int treg=(op&0x0F0000)>>16;
-    //printf("treg=%d",treg);
     int reg=mv.TablaRegistros[treg];
     int reg_pointer=reg>>16;
     short int reg_offset=(reg&0x0000FFFF);
-    //printf("offset=%d, regoffset=%d, regpointer=%d",offset,reg_offset,reg_pointer);
     return mv.TablaDeSegmentos[reg_pointer].base+reg_offset+offset;
 }
 
@@ -200,7 +197,6 @@ void ModificaCC(tmv *mv,int nz){
 
 void MOV(int op1,char top1,int valor,tmv *mv){
     char tiporeg=(op1>>4)&0x3;
-    //printf("\nMOVVALOR=%d\n",valor);
     if (top1==0){
         int pos_memo=DireccionMemoria(op1,*mv);
         unsigned short int cant=celdas_memo(op1)-1;
@@ -287,7 +283,6 @@ void DIV(int op1,char top1,int valor,tmv *mv){
 
 void CMP(int op1,char top1,int valor2,tmv *mv){
     int valor=ValorOperando(op1,top1,*mv);
-    //printf("\nRES1=%d, RES2=%d \n",valor,valor2);
     ModificaCC(mv,valor-valor2);
 }
 
@@ -323,7 +318,6 @@ void AND(int op1,char top1,int valor,tmv *mv){
     else
         valorm=ValorRegistro(tiporeg,op1,*mv);
     nz=valorm&valor;
-    //printf("\n AND VALOR1=%d  VALOR2=%d\n",valorm,valor);
     MOV(op1,top1,nz,mv);
     ModificaCC(mv,nz);
 }
@@ -335,7 +329,7 @@ void OR(int op1,char top1,int valor,tmv *mv){
         valorm=ValorMemoria(op1,*mv);
     else
         valorm=ValorRegistro(tiporeg,op1,*mv);
-    nz=valorm||valor;
+    nz=valorm|valor;
     MOV(op1,top1,nz,mv);
     ModificaCC(mv,nz);
 }
@@ -539,7 +533,6 @@ void VerificarOperacion(int op,tmv mv){
     int pos0=mv.TablaDeSegmentos[reg_pointer].size;
     int pos1=mv.TablaDeSegmentos[reg_pointer].base;
     valor=offset+reg_offset;
-    //printf("VALOR=%d , POS0=%d , POS1=%d, regpointer=%d, offset=%d,treg=%d,refoffset=%d",valor,pos0,pos1,reg_pointer,offset,treg,reg_offset);
         if (valor>pos0 || pos0+valor<0 || pos1+valor<pos1){
             printf("ERROR (3): Segmentation fault");
             exit(-1);
@@ -556,12 +549,10 @@ void PUSH(int valor,tmv *mv){
     }
     for (int i=0;i<=3;i++){
         sp_offset-=1;   //decremento en 4 el sp
-        //printf("POS=%d I=%d",sp_offset,i);
         (*mv).TablaMemoria[pos_ss+sp_offset]=(valor>>(i*8));    //guardo el valor en memoria(pila)
     }
     (*mv).TablaRegistros[6]=(*mv).TablaRegistros[6]&0xFFFF0000; //me parece medio al pedo esto por que no va a cambiar el segmento
     (*mv).TablaRegistros[6]+=sp_offset;     //le cambia el offset
-    //printf("SP offset=%d",(*mv).TablaRegistros[6]&0x0000FFFF);
 }
 
 void POP(int op,char top,tmv *mv){
